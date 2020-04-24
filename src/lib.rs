@@ -8,94 +8,6 @@ pub enum Access {
     ReadWrite = 3,
 }
 
-pub trait Get<T>: Send + Sync {
-    fn get(&self) -> T;
-}
-
-pub trait Set<T>: Send + Sync {
-    fn set(&self, value: T);
-}
-
-pub enum ValueAccess<T> {
-    Get(Arc<dyn Get<T>>),
-    Set(Arc<dyn Set<T>>),
-    GetSet(Arc<dyn Get<T>>, Arc<dyn Set<T>>),
-}
-
-pub trait Node {
-    fn address(&self) -> &str;
-    fn access(&self) -> Access;
-
-    //XXX
-    //fn values(&self) -> Iterator?
-}
-
-//XXX use marker traits?
-
-/*
-Int(i32)
-Float(f32)
-String(String)
-Blob(Vec<u8>)
-Time(u32, u32)
-Long(i64)
-Double(f64)
-Char(char)
-Color(OscColor)
-Midi(OscMidiMessage)
-Bool(bool)
-Array(OscArray)
-Nil
-Inf
-*/
-
-pub enum ValueGet {
-    Int(Arc<dyn Get<i32>>),
-    Float(Arc<dyn Get<f32>>),
-    String(Arc<dyn Get<String>>),
-    Blob(Arc<dyn Get<Box<[u8]>>>),
-    Time(Arc<dyn Get<(u32, u32)>>),
-    Long(Arc<dyn Get<i64>>),
-    Double(Arc<dyn Get<f64>>),
-    Char(Arc<dyn Get<char>>),
-    Midi(Arc<dyn Get<(u8, u8, u8, u8)>>),
-    Bool(Arc<dyn Get<bool>>),
-    Array(Arc<dyn Get<Box<[ValueGet]>>>),
-    Nil,
-    Inf,
-}
-
-pub enum ValueSet {
-    Int(Arc<dyn Set<i32>>),
-    Float(Arc<dyn Set<f32>>),
-    String(Arc<dyn Set<String>>),
-    Blob(Arc<dyn Set<Box<[u8]>>>),
-    Time(Arc<dyn Set<(u32, u32)>>),
-    Long(Arc<dyn Set<i64>>),
-    Double(Arc<dyn Set<f64>>),
-    Char(Arc<dyn Set<char>>),
-    Midi(Arc<dyn Set<(u8, u8, u8, u8)>>),
-    Bool(Arc<dyn Set<bool>>),
-    Array(Arc<dyn Set<Box<[ValueSet]>>>),
-}
-
-pub enum ValueGetSet {
-    Int(Arc<dyn Get<i32>>, Arc<dyn Set<i32>>),
-    Float(Arc<dyn Get<f32>>, Arc<dyn Set<f32>>),
-    String(Arc<dyn Get<String>>, Arc<dyn Set<String>>),
-    Blob(Arc<dyn Get<Box<[u8]>>>, Arc<dyn Set<Box<[u8]>>>),
-    Time(Arc<dyn Get<(u32, u32)>>, Arc<dyn Set<(u32, u32)>>),
-    Long(Arc<dyn Get<i64>>, Arc<dyn Set<i64>>),
-    Double(Arc<dyn Get<f64>>, Arc<dyn Set<f64>>),
-    Char(Arc<dyn Get<char>>, Arc<dyn Set<char>>),
-    Midi(
-        Arc<dyn Get<(u8, u8, u8, u8)>>,
-        Arc<dyn Set<(u8, u8, u8, u8)>>,
-    ),
-    Bool(Arc<dyn Get<bool>>, Arc<dyn Set<bool>>),
-    Array(Arc<dyn Set<Box<[ValueGetSet]>>>),
-}
-
 pub enum ClipMode<T> {
     None,
     Low(T),
@@ -109,6 +21,120 @@ pub enum Range<T> {
     Max(T),
     MinMax(T, T),
     Vals(Vec<T>),
+}
+
+pub trait Get<T>: Send {
+    fn get(&self) -> T;
+}
+
+pub trait Set<T>: Send {
+    fn set(&self, value: T);
+}
+
+//types:
+//container
+//read
+//write
+//read/write
+
+pub enum Node {
+    Container {
+        description: Option<String>,
+        address: String,
+    },
+    Get {
+        description: Option<String>,
+        address: String,
+        values: Vec<ValueGet>,
+    },
+    Set {
+        description: Option<String>,
+        address: String,
+        values: Vec<ValueSet>,
+    },
+    GetSet {
+        description: Option<String>,
+        address: String,
+        values: Vec<ValueGetSet>,
+    },
+}
+
+impl Node {
+    pub fn access(&self) -> Access {
+        match self {
+            Node::Container { .. } => Access::NoValue,
+            Node::Get { .. } => Access::ReadOnly,
+            Node::Set { .. } => Access::WriteOnly,
+            Node::GetSet { .. } => Access::ReadWrite,
+        }
+    }
+    pub fn description(&self) -> &Option<String> {
+        match self {
+            Node::Container { description, .. } => description,
+            Node::Get { description, .. } => description,
+            Node::Set { description, .. } => description,
+            Node::GetSet { description, .. } => description,
+        }
+    }
+    pub fn address(&self) -> &String {
+        match self {
+            Node::Container { address, .. } => address,
+            Node::Get { address, .. } => address,
+            Node::Set { address, .. } => address,
+            Node::GetSet { address, .. } => address,
+        }
+    }
+}
+
+pub struct Value<V, T> {
+    pub value: V,
+    pub clip_mode: ClipMode<T>,
+    pub range: Range<T>,
+    pub unit: Option<String>,
+}
+
+pub enum ValueGet {
+    Int(Value<Arc<dyn Get<i32>>, i32>),
+    Float(Value<Arc<dyn Get<f32>>, f32>),
+    String(Value<Arc<dyn Get<String>>, String>),
+    Blob(Value<Arc<dyn Get<Box<[u8]>>>, Box<[u8]>>),
+    Time(Value<Arc<dyn Get<(u32, u32)>>, (u32, u32)>),
+    Long(Value<Arc<dyn Get<i64>>, i64>),
+    Double(Value<Arc<dyn Get<f64>>, f64>),
+    Char(Value<Arc<dyn Get<char>>, char>),
+    Midi(Value<Arc<dyn Get<(u8, u8, u8, u8)>>, (u8, u8, u8, u8)>),
+    Bool(Value<Arc<dyn Get<bool>>, bool>),
+    Array(Box<[ValueGet]>),
+    Nil,
+    Inf,
+}
+
+pub enum ValueSet {
+    Int(Value<Arc<dyn Set<i32>>, i32>),
+    Float(Value<Arc<dyn Set<f32>>, f32>),
+    String(Value<Arc<dyn Set<String>>, String>),
+    Blob(Value<Arc<dyn Set<Box<[u8]>>>, Box<[u8]>>),
+    Time(Value<Arc<dyn Set<(u32, u32)>>, (u32, u32)>),
+    Long(Value<Arc<dyn Set<i64>>, i64>),
+    Double(Value<Arc<dyn Set<f64>>, f64>),
+    Char(Value<Arc<dyn Set<char>>, char>),
+    Midi(Value<Arc<dyn Set<(u8, u8, u8, u8)>>, (u8, u8, u8, u8)>),
+    Bool(Value<Arc<dyn Set<bool>>, bool>),
+    Array(Box<[ValueSet]>),
+}
+
+pub enum ValueGetSet {
+    Int(Value<(Arc<dyn Get<i32>>, Arc<dyn Set<i32>>), i32>),
+    Float(Value<(Arc<dyn Get<f32>>, Arc<dyn Set<f32>>), f32>),
+    String(Value<(Arc<dyn Get<String>>, Arc<dyn Set<String>>), String>),
+    Blob(Value<Arc<dyn Set<Box<[u8]>>>, Box<[u8]>>),
+    Time(Value<Arc<dyn Set<(u32, u32)>>, (u32, u32)>),
+    Long(Value<(Arc<dyn Get<i64>>, Arc<dyn Set<i64>>), i64>),
+    Double(Value<(Arc<dyn Get<f64>>, Arc<dyn Set<f64>>), f64>),
+    Char(Value<(Arc<dyn Get<char>>, Arc<dyn Set<char>>), char>),
+    Midi(Value<Arc<dyn Set<(u8, u8, u8, u8)>>, (u8, u8, u8, u8)>),
+    Bool(Value<(Arc<dyn Get<bool>>, Arc<dyn Set<bool>>), bool>),
+    Array(Box<[ValueGetSet]>),
 }
 
 //XXX need a node 'renderer' that can take a snapshot of all the aparamters for
