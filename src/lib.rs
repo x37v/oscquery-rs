@@ -39,22 +39,22 @@ pub trait Set<T>: Send {
 
 pub enum Node {
     Container {
-        description: Option<String>,
         address: String,
+        description: Option<String>,
     },
     Get {
-        description: Option<String>,
         address: String,
+        description: Option<String>,
         values: Vec<ValueGet>,
     },
     Set {
-        description: Option<String>,
         address: String,
+        description: Option<String>,
         values: Vec<ValueSet>,
     },
     GetSet {
-        description: Option<String>,
         address: String,
+        description: Option<String>,
         values: Vec<ValueGetSet>,
     },
 }
