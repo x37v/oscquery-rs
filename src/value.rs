@@ -43,6 +43,18 @@ pub trait GetSet<T>: Get<T> + Set<T> {
     fn as_set(&self) -> &dyn Set<T>;
 }
 
+impl<X, T> GetSet<T> for X
+where
+    X: Get<T> + Set<T>,
+{
+    fn as_get(&self) -> &dyn Get<T> {
+        self
+    }
+    fn as_set(&self) -> &dyn Set<T> {
+        self
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Value<V, T> {
     pub value: V,
@@ -139,6 +151,7 @@ mod tests {
 
     struct A(i32);
     struct B(AtomicUsize);
+    struct C(AtomicUsize);
 
     impl Get<i32> for A {
         fn get(&self) -> i32 {
@@ -152,7 +165,25 @@ mod tests {
         }
     }
 
+    impl Default for C {
+        fn default() -> Self {
+            Self(AtomicUsize::new(0))
+        }
+    }
+
     impl Set<u32> for B {
+        fn set(&self, v: u32) {
+            self.0.store(v as usize, Ordering::Relaxed);
+        }
+    }
+
+    impl Get<u32> for C {
+        fn get(&self) -> u32 {
+            self.0.load(Ordering::Relaxed) as u32
+        }
+    }
+
+    impl Set<u32> for C {
         fn set(&self, v: u32) {
             self.0.store(v as usize, Ordering::Relaxed);
         }
@@ -178,5 +209,19 @@ mod tests {
         let b: ValueSet<u32> = ValueBuilder::new(a.clone() as _).build();
         b.value().set(5u32);
         assert_eq!(a.0.load(Ordering::Relaxed), 5usize);
+
+        let a: Arc<C> = Arc::new(Default::default());
+        let b: ValueGetSet<u32> = ValueBuilder::new(a.clone() as _).build();
+        assert_eq!(b.value().get(), 0u32);
+        b.value().set(20u32);
+        assert_eq!(b.value().get(), 20u32);
+
+        //can clone
+        let x = b.clone();
+        assert_eq!(x.value().get(), 20u32);
+
+        //can also be just a get or set
+        let _: ValueGet<u32> = ValueBuilder::new(a.clone() as _).build();
+        let _: ValueSet<u32> = ValueBuilder::new(a.clone() as _).build();
     }
 }
