@@ -1,6 +1,12 @@
+//https://github.com/Vidvox/OSCQueryProposal
+use std::fmt;
 use std::sync::Arc;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Access {
     NoValue = 0,
     ReadOnly = 1,
@@ -8,6 +14,7 @@ pub enum Access {
     ReadWrite = 3,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ClipMode<T> {
     None,
     Low(T),
@@ -15,12 +22,13 @@ pub enum ClipMode<T> {
     Both(T, T),
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub enum Range<T> {
     None,
     Min(T),
     Max(T),
     MinMax(T, T),
-    Vals(Vec<T>),
+    Vals(Box<[T]>),
 }
 
 pub trait Get<T>: Send {
@@ -31,12 +39,42 @@ pub trait Set<T>: Send {
     fn set(&self, value: T);
 }
 
+pub trait GetSet<T>: Get<T> + Set<T> {
+    fn as_get(&self) -> &dyn Get<T>;
+    fn as_set(&self) -> &dyn Set<T>;
+}
+
+impl<T> fmt::Debug for dyn Get<T>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Get({:?})", self.get())
+    }
+}
+
+impl<T> fmt::Debug for dyn Set<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Set")
+    }
+}
+
+impl<T> fmt::Debug for dyn GetSet<T>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "GetSet({:?})", self.as_get().get())
+    }
+}
+
 //types:
 //container
 //read
 //write
 //read/write
 
+#[derive(Debug)]
 pub enum Node {
     Container {
         address: String,
@@ -45,21 +83,39 @@ pub enum Node {
     Get {
         address: String,
         description: Option<String>,
-        values: Vec<ValueGet>,
+        params: Vec<ParamGet>,
     },
     Set {
         address: String,
         description: Option<String>,
-        values: Vec<ValueSet>,
+        params: Vec<ParamSet>,
     },
     GetSet {
         address: String,
         description: Option<String>,
-        values: Vec<ValueGetSet>,
+        params: Vec<ParamGetSet>,
     },
 }
 
 impl Node {
+    pub fn address_valid(address: &String) -> Result<(), &'static str> {
+        //TODO test others
+        if address.contains('/') {
+            Err("invalid address")
+        } else {
+            Ok(())
+        }
+    }
+    pub fn new_container(
+        address: String,
+        description: Option<String>,
+    ) -> Result<Self, &'static str> {
+        Self::address_valid(&address)?;
+        Ok(Self::Container {
+            address,
+            description,
+        })
+    }
     pub fn access(&self) -> Access {
         match self {
             Node::Container { .. } => Access::NoValue,
@@ -86,6 +142,7 @@ impl Node {
     }
 }
 
+#[derive(Debug)]
 pub struct Value<V, T> {
     pub value: V,
     pub clip_mode: ClipMode<T>,
@@ -93,48 +150,55 @@ pub struct Value<V, T> {
     pub unit: Option<String>,
 }
 
-pub enum ValueGet {
-    Int(Value<Arc<dyn Get<i32>>, i32>),
-    Float(Value<Arc<dyn Get<f32>>, f32>),
-    String(Value<Arc<dyn Get<String>>, String>),
-    Blob(Value<Arc<dyn Get<Box<[u8]>>>, Box<[u8]>>),
-    Time(Value<Arc<dyn Get<(u32, u32)>>, (u32, u32)>),
-    Long(Value<Arc<dyn Get<i64>>, i64>),
-    Double(Value<Arc<dyn Get<f64>>, f64>),
-    Char(Value<Arc<dyn Get<char>>, char>),
-    Midi(Value<Arc<dyn Get<(u8, u8, u8, u8)>>, (u8, u8, u8, u8)>),
-    Bool(Value<Arc<dyn Get<bool>>, bool>),
-    Array(Box<[ValueGet]>),
+pub type ValueGet<T> = Value<Arc<dyn Get<T>>, T>;
+pub type ValueSet<T> = Value<Arc<dyn Set<T>>, T>;
+pub type ValueGetSet<T> = Value<Arc<dyn GetSet<T>>, T>;
+
+#[derive(Debug)]
+pub enum ParamGet {
+    Int(ValueGet<i32>),
+    Float(ValueGet<f32>),
+    String(ValueGet<String>),
+    Blob(ValueGet<Box<[u8]>>), //does clip mode make and range make sense?
+    Time(ValueGet<(u32, u32)>),
+    Long(ValueGet<i64>),
+    Double(ValueGet<f64>),
+    Char(ValueGet<char>),
+    Midi(ValueGet<(u8, u8, u8, u8)>),
+    Bool(ValueGet<bool>),
+    Array(Box<[ParamGet]>),
     Nil,
     Inf,
 }
 
-pub enum ValueSet {
-    Int(Value<Arc<dyn Set<i32>>, i32>),
-    Float(Value<Arc<dyn Set<f32>>, f32>),
-    String(Value<Arc<dyn Set<String>>, String>),
-    Blob(Value<Arc<dyn Set<Box<[u8]>>>, Box<[u8]>>),
-    Time(Value<Arc<dyn Set<(u32, u32)>>, (u32, u32)>),
-    Long(Value<Arc<dyn Set<i64>>, i64>),
-    Double(Value<Arc<dyn Set<f64>>, f64>),
-    Char(Value<Arc<dyn Set<char>>, char>),
-    Midi(Value<Arc<dyn Set<(u8, u8, u8, u8)>>, (u8, u8, u8, u8)>),
-    Bool(Value<Arc<dyn Set<bool>>, bool>),
-    Array(Box<[ValueSet]>),
+#[derive(Debug)]
+pub enum ParamSet {
+    Int(ValueSet<i32>),
+    Float(ValueSet<f32>),
+    String(ValueSet<String>),
+    Blob(ValueSet<Box<[u8]>>), //does clip mode make and range make sense?
+    Time(ValueSet<(u32, u32)>),
+    Long(ValueSet<i64>),
+    Double(ValueSet<f64>),
+    Char(ValueSet<char>),
+    Midi(ValueSet<(u8, u8, u8, u8)>),
+    Bool(ValueSet<bool>),
+    Array(Box<[ParamSet]>),
 }
 
-pub enum ValueGetSet {
-    Int(Value<(Arc<dyn Get<i32>>, Arc<dyn Set<i32>>), i32>),
-    Float(Value<(Arc<dyn Get<f32>>, Arc<dyn Set<f32>>), f32>),
-    String(Value<(Arc<dyn Get<String>>, Arc<dyn Set<String>>), String>),
-    Blob(Value<Arc<dyn Set<Box<[u8]>>>, Box<[u8]>>),
-    Time(Value<Arc<dyn Set<(u32, u32)>>, (u32, u32)>),
-    Long(Value<(Arc<dyn Get<i64>>, Arc<dyn Set<i64>>), i64>),
-    Double(Value<(Arc<dyn Get<f64>>, Arc<dyn Set<f64>>), f64>),
-    Char(Value<(Arc<dyn Get<char>>, Arc<dyn Set<char>>), char>),
-    Midi(Value<Arc<dyn Set<(u8, u8, u8, u8)>>, (u8, u8, u8, u8)>),
-    Bool(Value<(Arc<dyn Get<bool>>, Arc<dyn Set<bool>>), bool>),
-    Array(Box<[ValueGetSet]>),
+#[derive(Debug)]
+pub enum ParamGetSet {
+    Int(ValueGetSet<i32>),
+    Float(ValueGetSet<f32>),
+    String(ValueGetSet<String>),
+    Blob(ValueGetSet<Box<[u8]>>), //does clip mode make and range make sense?
+    Time(ValueGetSet<(u32, u32)>),
+    Long(ValueGetSet<i64>),
+    Double(ValueGetSet<f64>),
+    Char(ValueGetSet<char>),
+    Midi(ValueGetSet<(u8, u8, u8, u8)>),
+    Bool(ValueGetSet<bool>),
+    Array(Box<[ParamGetSet]>),
 }
 
 //XXX need a node 'renderer' that can take a snapshot of all the aparamters for
@@ -142,8 +206,11 @@ pub enum ValueGetSet {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn can_build() {
+        let c = Node::new_container("soda".to_string(), None);
+        assert_matches!(c, Ok(Node::Container { .. }));
+        println!("{:?}", 32usize);
     }
 }
