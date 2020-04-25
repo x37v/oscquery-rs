@@ -9,13 +9,13 @@ pub enum ClipMode<T> {
     Both(T, T),
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Range<T> {
     None,
     Min(T),
     Max(T),
     MinMax(T, T),
-    Vals(Box<[T]>),
+    Vals(Vec<T>),
 }
 
 pub trait Get<T>: Send {
@@ -31,7 +31,7 @@ pub trait GetSet<T>: Get<T> + Set<T> {
     fn as_set(&self) -> &dyn Set<T>;
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Value<V, T> {
     pub value: V,
     pub clip_mode: ClipMode<T>,
