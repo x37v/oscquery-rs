@@ -33,21 +33,21 @@ pub struct Container {
 pub struct Get {
     address: String,
     description: Option<String>,
-    params: Vec<ParamGet>,
+    params: Box<[ParamGet]>,
 }
 
 #[derive(Debug)]
 pub struct Set {
     address: String,
     description: Option<String>,
-    params: Vec<ParamSet>,
+    params: Box<[ParamSet]>,
 }
 
 #[derive(Debug)]
 pub struct GetSet {
     address: String,
     description: Option<String>,
-    params: Vec<ParamGetSet>,
+    params: Box<[ParamGetSet]>,
 }
 
 #[derive(Debug)]
@@ -63,6 +63,57 @@ impl Container {
         Ok(Self {
             address: address_valid(address)?,
             description,
+        })
+    }
+}
+
+impl Get {
+    pub fn new<I>(
+        address: String,
+        description: Option<String>,
+        params: I,
+    ) -> Result<Self, &'static str>
+    where
+        I: Iterator<Item = ParamGet>,
+    {
+        Ok(Self {
+            address: address_valid(address)?,
+            description,
+            params: params.collect::<Vec<_>>().into(),
+        })
+    }
+}
+
+impl Set {
+    pub fn new<I>(
+        address: String,
+        description: Option<String>,
+        params: I,
+    ) -> Result<Self, &'static str>
+    where
+        I: Iterator<Item = ParamSet>,
+    {
+        Ok(Self {
+            address: address_valid(address)?,
+            description,
+            params: params.collect::<Vec<_>>().into(),
+        })
+    }
+}
+
+impl GetSet {
+    pub fn new<I>(
+        address: String,
+        description: Option<String>,
+        params: I,
+    ) -> Result<Self, &'static str>
+    where
+        I: Iterator<Item = ParamGetSet>,
+    {
+        Ok(Self {
+            address: address_valid(address)?,
+            description,
+            params: params.collect::<Vec<_>>().into(),
         })
     }
 }
