@@ -12,7 +12,7 @@ pub enum ParamGet {
     Char(ValueGet<char>),
     Midi(ValueGet<(u8, u8, u8, u8)>),
     Bool(ValueGet<bool>),
-    Array(Box<[ParamGet]>),
+    Array(Box<[Self]>),
     Nil,
     Inf,
 }
@@ -29,7 +29,7 @@ pub enum ParamSet {
     Char(ValueSet<char>),
     Midi(ValueSet<(u8, u8, u8, u8)>),
     Bool(ValueSet<bool>),
-    Array(Box<[ParamSet]>),
+    Array(Box<[Self]>),
 }
 
 #[derive(Debug)]
@@ -44,5 +44,5 @@ pub enum ParamGetSet {
     Char(ValueGetSet<char>),
     Midi(ValueGetSet<(u8, u8, u8, u8)>),
     Bool(ValueGetSet<bool>),
-    Array(Box<[ParamGetSet]>),
+    Array(Box<[Self]>),
 }
