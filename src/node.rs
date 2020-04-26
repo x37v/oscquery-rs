@@ -1,4 +1,5 @@
 use crate::param::*;
+use std::convert::From;
 
 pub fn address_valid(address: String) -> Result<String, &'static str> {
     //TODO test others
@@ -25,8 +26,8 @@ pub enum Access {
 
 #[derive(Debug)]
 pub struct Container {
-    address: String,
-    description: Option<String>,
+    pub(crate) address: String,
+    pub(crate) description: Option<String>,
 }
 
 #[derive(Debug)]
@@ -142,6 +143,30 @@ impl Node {
             Node::Set(n) => &n.address,
             Node::GetSet(n) => &n.address,
         }
+    }
+}
+
+impl From<Container> for Node {
+    fn from(n: Container) -> Self {
+        Self::Container(n)
+    }
+}
+
+impl From<Get> for Node {
+    fn from(n: Get) -> Self {
+        Self::Get(n)
+    }
+}
+
+impl From<Set> for Node {
+    fn from(n: Set) -> Self {
+        Self::Set(n)
+    }
+}
+
+impl From<GetSet> for Node {
+    fn from(n: GetSet) -> Self {
+        Self::GetSet(n)
     }
 }
 
