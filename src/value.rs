@@ -1,14 +1,16 @@
+use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use std::fmt;
 use std::sync::Arc;
 
 pub mod atomic;
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum ClipMode<T> {
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ClipMode {
     None,
-    Low(T),
-    High(T),
-    Both(T, T),
+    Low,
+    High,
+    Both,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -20,9 +22,44 @@ pub enum Range<T> {
     Vals(Vec<T>),
 }
 
-impl<T> Default for ClipMode<T> {
+impl<T> Serialize for Range<T>
+where
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::None => serializer.serialize_map(Some(0))?.end(),
+            Self::Min(v) => {
+                let mut m = serializer.serialize_map(Some(1))?;
+                m.serialize_entry("MIN".into(), v)?;
+                m.end()
+            }
+            Self::Max(v) => {
+                let mut m = serializer.serialize_map(Some(1))?;
+                m.serialize_entry("MAX".into(), v)?;
+                m.end()
+            }
+            Self::MinMax(min, max) => {
+                let mut m = serializer.serialize_map(Some(2))?;
+                m.serialize_entry("MIN".into(), min)?;
+                m.serialize_entry("MAX".into(), max)?;
+                m.end()
+            }
+            Self::Vals(values) => {
+                let mut m = serializer.serialize_map(Some(1))?;
+                m.serialize_entry("VALS".into(), values)?;
+                m.end()
+            }
+        }
+    }
+}
+
+impl Default for ClipMode {
     fn default() -> Self {
-        ClipMode::<T>::None
+        ClipMode::None
     }
 }
 
@@ -60,7 +97,7 @@ where
 #[derive(Clone, Debug)]
 pub struct Value<V, T> {
     pub value: V,
-    pub clip_mode: ClipMode<T>,
+    pub clip_mode: ClipMode,
     pub range: Range<T>,
     pub unit: Option<String>,
 }
@@ -80,7 +117,7 @@ impl<V, T> ValueBuilder<V, T> {
         Self { value }
     }
 
-    pub fn with_clip_mode(mut self, clip_mode: ClipMode<T>) -> Self {
+    pub fn with_clip_mode(mut self, clip_mode: ClipMode) -> Self {
         self.value.clip_mode = clip_mode;
         self
     }
@@ -105,7 +142,7 @@ impl<V, T> Value<V, T> {
         &self.value
     }
 
-    pub fn clip_mode(&self) -> &ClipMode<T> {
+    pub fn clip_mode(&self) -> &ClipMode {
         &self.clip_mode
     }
 
@@ -149,6 +186,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     struct A(i32);
@@ -189,6 +227,53 @@ mod tests {
         fn set(&self, v: u32) {
             self.0.store(v as usize, Ordering::Relaxed);
         }
+    }
+
+    #[test]
+    fn clip_mode() {
+        for (c, s) in &[
+            (ClipMode::None, "none"),
+            (ClipMode::Low, "low"),
+            (ClipMode::High, "high"),
+            (ClipMode::Both, "both"),
+        ] {
+            let v = serde_json::to_value(&c);
+            assert!(v.is_ok());
+            assert_eq!(v.unwrap(), serde_json::Value::String(s.to_string()));
+        }
+    }
+
+    #[test]
+    fn range() {
+        let r: Range<u32> = Range::None;
+        let v = serde_json::to_value(&r);
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), json!({}));
+
+        let r: Range<u32> = Range::Min(23);
+        let v = serde_json::to_value(&r);
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), json!({"MIN": 23}));
+
+        let r: Range<f32> = Range::Max(100f32);
+        let v = serde_json::to_value(&r);
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), json!({"MAX": 100.0}));
+
+        let r: Range<f32> = Range::MinMax(2f32, 100f32);
+        let v = serde_json::to_value(&r);
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), json!({"MAX": 100.0, "MIN": 2.0}));
+
+        let r: Range<i32> = Range::Vals(vec![-1i32, 2i32]);
+        let v = serde_json::to_value(&r);
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), json!({"VALS": [-1, 2]}));
+
+        let r: Range<String> = Range::Vals(vec!["x".to_string(), "y".to_string(), "z".to_string()]);
+        let v = serde_json::to_value(&r);
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), json!({"VALS": ["x", "y", "z"]}));
     }
 
     #[test]
