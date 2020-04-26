@@ -1,6 +1,6 @@
 use crate::node::*;
 use petgraph::stable_graph::{NodeIndex, StableGraph};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{RwLock, RwLockWriteGuard};
 
 struct RootInner {
     graph: StableGraph<NodeWrapper, ()>,
@@ -8,7 +8,7 @@ struct RootInner {
 }
 
 pub struct Root {
-    inner: Mutex<RootInner>,
+    inner: RwLock<RootInner>,
 }
 
 struct NodeWrapper {
@@ -39,12 +39,12 @@ impl Default for RootInner {
 impl Root {
     pub fn new() -> Self {
         Self {
-            inner: Mutex::new(RootInner::default()),
+            inner: RwLock::new(RootInner::default()),
         }
     }
 
-    fn locked(&self) -> Result<MutexGuard<RootInner>, &'static str> {
-        self.inner.lock().or_else(|_| Err("poisoned lock"))
+    fn write_locked(&self) -> Result<RwLockWriteGuard<RootInner>, &'static str> {
+        self.inner.write().or_else(|_| Err("poisoned lock"))
     }
 
     fn add(
@@ -56,7 +56,7 @@ impl Root {
             Node::Container(_) => true,
             _ => false,
         };
-        match self.locked() {
+        match self.write_locked() {
             Ok(mut inner) => {
                 let (parent_index, full_path) = if let Some(parent_index) = parent_index {
                     if let Some(parent) = inner.graph.node_weight(parent_index.clone()) {
