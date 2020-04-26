@@ -1,5 +1,9 @@
 use crate::value::*;
 
+pub trait OSCTypeStr {
+    fn osc_type_str(&self) -> &'static str;
+}
+
 #[derive(Debug)]
 pub enum ParamGet {
     Int(ValueGet<i32>),
@@ -45,4 +49,64 @@ pub enum ParamGetSet {
     Bool(ValueGetSet<bool>),
     //TODO Blob(ValueGetSet<Box<[u8]>>), //does clip mode make and range make sense?
     //TODO Array(Box<[Self]>),
+}
+
+impl OSCTypeStr for ParamGet {
+    fn osc_type_str(&self) -> &'static str {
+        match self {
+            Self::Int(..) => &"i",
+            Self::Float(..) => &"f",
+            Self::String(..) => &"s",
+            Self::Time(..) => &"t",
+            Self::Long(..) => &"h",
+            Self::Double(..) => &"d",
+            Self::Char(..) => &"c",
+            Self::Midi(..) => &"m",
+            Self::Bool(v) => {
+                if v.value().get() {
+                    &"T"
+                } else {
+                    &"F"
+                }
+            }
+        }
+    }
+}
+
+impl OSCTypeStr for ParamSet {
+    fn osc_type_str(&self) -> &'static str {
+        match self {
+            Self::Int(..) => &"i",
+            Self::Float(..) => &"f",
+            Self::String(..) => &"s",
+            Self::Time(..) => &"t",
+            Self::Long(..) => &"h",
+            Self::Double(..) => &"d",
+            Self::Char(..) => &"c",
+            Self::Midi(..) => &"m",
+            Self::Bool(..) => &"T",
+        }
+    }
+}
+
+impl OSCTypeStr for ParamGetSet {
+    fn osc_type_str(&self) -> &'static str {
+        match self {
+            Self::Int(..) => &"i",
+            Self::Float(..) => &"f",
+            Self::String(..) => &"s",
+            Self::Time(..) => &"t",
+            Self::Long(..) => &"h",
+            Self::Double(..) => &"d",
+            Self::Char(..) => &"c",
+            Self::Midi(..) => &"m",
+            Self::Bool(v) => {
+                if v.value().get() {
+                    &"T"
+                } else {
+                    &"F"
+                }
+            }
+        }
+    }
 }
