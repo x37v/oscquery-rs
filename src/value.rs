@@ -277,6 +277,24 @@ mod tests {
     }
 
     #[test]
+    fn unit() {
+        let b: ValueGet<i32> = ValueBuilder::new(Arc::new(A(23i32)) as _)
+            .with_unit("pizzas".to_string())
+            .build();
+        assert_eq!(b.unit(), &Some("pizzas".to_string()));
+
+        let v = serde_json::to_value(b.unit());
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), serde_json::Value::String("pizzas".to_string()));
+
+        let b: ValueGet<i32> = ValueBuilder::new(Arc::new(A(23i32)) as _).build();
+        assert_eq!(b.unit(), &None);
+        let v = serde_json::to_value(b.unit());
+        assert!(v.is_ok());
+        assert_eq!(v.unwrap(), serde_json::Value::Null);
+    }
+
+    #[test]
     fn can_build() {
         let b: ValueGet<i32> = ValueBuilder::new(Arc::new(A(23i32)) as _).build();
         assert_eq!(b.value().get(), 23i32);
