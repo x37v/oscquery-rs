@@ -5,4 +5,5 @@ extern crate assert_matches;
 
 pub mod node;
 pub mod param;
+pub mod root;
 pub mod value;
