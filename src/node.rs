@@ -1,4 +1,5 @@
 use crate::param::*;
+use serde::{Deserialize, Serialize, Serializer};
 use std::convert::From;
 
 pub fn address_valid(address: String) -> Result<String, &'static str> {
@@ -119,6 +120,20 @@ impl GetSet {
     }
 }
 
+impl Serialize for Access {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_u8(match self {
+            Self::NoValue => 0,
+            Self::ReadOnly => 1,
+            Self::WriteOnly => 2,
+            Self::ReadWrite => 3,
+        })
+    }
+}
+
 impl Node {
     pub fn access(&self) -> Access {
         match self {
@@ -173,6 +188,21 @@ impl From<GetSet> for Node {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn access() {
+        for (a, t) in &[
+            (Access::NoValue, json!(0)),
+            (Access::ReadOnly, json!(1)),
+            (Access::WriteOnly, json!(2)),
+            (Access::ReadWrite, json!(3)),
+        ] {
+            let v = serde_json::to_value(*a);
+            assert!(v.is_ok());
+            assert_eq!(v.unwrap(), t.clone());
+        }
+    }
 
     #[test]
     fn can_build() {
