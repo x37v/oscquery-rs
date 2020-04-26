@@ -1,6 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
+pub mod atomic;
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ClipMode<T> {
     None,
@@ -30,11 +32,11 @@ impl<T> Default for Range<T> {
     }
 }
 
-pub trait Get<T>: Send {
+pub trait Get<T>: Send + Sync {
     fn get(&self) -> T;
 }
 
-pub trait Set<T>: Send {
+pub trait Set<T>: Send + Sync {
     fn set(&self, value: T);
 }
 
