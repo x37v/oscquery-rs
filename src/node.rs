@@ -1,5 +1,7 @@
+use crate::param::OSCTypeStr;
 use crate::param::*;
-use serde::{Deserialize, Serialize, Serializer};
+use crate::value::Value;
+use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
 pub fn address_valid(address: String) -> Result<String, &'static str> {
@@ -157,6 +159,85 @@ impl Node {
             Node::Get(n) => &n.address,
             Node::Set(n) => &n.address,
             Node::GetSet(n) => &n.address,
+        }
+    }
+    pub fn type_string(&self) -> Option<String> {
+        match self {
+            Node::Container(..) => None,
+            Node::Get(n) => Some(
+                n.params
+                    .iter()
+                    .fold(String::new(), |acc, x| acc + x.osc_type_str()),
+            ),
+            Node::Set(n) => Some(
+                n.params
+                    .iter()
+                    .fold(String::new(), |acc, x| acc + x.osc_type_str()),
+            ),
+            Node::GetSet(n) => Some(
+                n.params
+                    .iter()
+                    .fold(String::new(), |acc, x| acc + x.osc_type_str()),
+            ),
+        }
+    }
+}
+
+pub(crate) struct NodeValueWrapper<'a>(pub(crate) &'a Node);
+impl<'a> Serialize for NodeValueWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            Node::Set(..) | Node::Container(..) => serializer.serialize_none(),
+            Node::Get(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetValueWrapper(v))?;
+                }
+                seq.end()
+            }
+            Node::GetSet(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetSetValueWrapper(v))?;
+                }
+                seq.end()
+            }
+        }
+    }
+}
+
+pub(crate) struct NodeRangeWrapper<'a>(pub(crate) &'a Node);
+impl<'a> Serialize for NodeRangeWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            Node::Container(..) => serializer.serialize_none(),
+            Node::Get(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetRangeWrapper(v))?;
+                }
+                seq.end()
+            }
+            Node::Set(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamSetRangeWrapper(v))?;
+                }
+                seq.end()
+            }
+            Node::GetSet(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetSetRangeWrapper(v))?;
+                }
+                seq.end()
+            }
         }
     }
 }

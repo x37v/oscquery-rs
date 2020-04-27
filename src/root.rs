@@ -1,5 +1,6 @@
 use crate::node::*;
 use petgraph::stable_graph::{NodeIndex, StableGraph};
+use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use std::sync::{RwLock, RwLockWriteGuard};
 
 struct RootInner {
@@ -95,6 +96,38 @@ impl Root {
             Some(NodeHandle::Method(_)) => Err((node, "cannot add node to a method node")),
             None => self.add(node, None),
         }
+    }
+}
+
+impl Serialize for NodeWrapper {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut m = serializer.serialize_map(None)?;
+        let n = &self.node;
+        m.serialize_entry("ACCESS".into(), &n.access())?;
+        if let Some(d) = n.description() {
+            m.serialize_entry("DESCRIPTION".into(), d)?;
+        }
+        m.serialize_entry("FULL_PATH".into(), &self.full_path)?;
+        if let Some(t) = n.type_string() {
+            m.serialize_entry("TYPE".into(), &t)?;
+        }
+        match n {
+            Node::Get(..) | Node::GetSet(..) => {
+                m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
+            }
+            _ => (),
+        };
+        match n {
+            Node::Container(..) => (),
+            _ => {
+                m.serialize_entry("VALUE".into(), &NodeRangeWrapper(n))?;
+            }
+        };
+        m.serialize_entry("FULL_PATH".into(), &self.full_path)?;
+        m.end()
     }
 }
 
