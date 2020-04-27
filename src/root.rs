@@ -1,7 +1,7 @@
 use crate::node::*;
 use petgraph::stable_graph::{NodeIndex, StableGraph};
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
-use std::sync::{RwLock, RwLockWriteGuard};
+use serde::{ser::SerializeMap, Serialize, Serializer};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 struct RootInner {
     graph: StableGraph<NodeWrapper, ()>,
@@ -27,10 +27,10 @@ impl Default for RootInner {
     fn default() -> Self {
         let mut graph = StableGraph::default();
         let root = graph.add_node(NodeWrapper {
-            full_path: "".to_string(),
+            full_path: "/".to_string(),
             node: Node::Container(Container {
                 address: "".to_string(), //invalid, but unchecked by default access
-                description: None,
+                description: Some("root node".to_string()),
             }),
         });
         Self { graph, root }
@@ -46,6 +46,10 @@ impl Root {
 
     fn write_locked(&self) -> Result<RwLockWriteGuard<RootInner>, &'static str> {
         self.inner.write().or_else(|_| Err("poisoned lock"))
+    }
+
+    fn read_locked(&self) -> Result<RwLockReadGuard<RootInner>, &'static str> {
+        self.inner.read().or_else(|_| Err("poisoned lock"))
     }
 
     fn add(
@@ -127,6 +131,9 @@ impl Serialize for NodeWrapper {
             }
         };
         m.serialize_entry("FULL_PATH".into(), &self.full_path)?;
+
+        //TODO contents
+
         m.end()
     }
 }
@@ -134,9 +141,9 @@ impl Serialize for NodeWrapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::node::*;
+
     use crate::param::*;
-    use crate::value::atomic::*;
+
     use crate::value::*;
     use ::atomic::Atomic;
     use std::sync::Arc;
@@ -215,5 +222,23 @@ mod tests {
         assert!(res.is_ok());
 
         assert!(h.join().is_ok());
+    }
+
+    #[test]
+    fn serialize() {
+        let root = Arc::new(Root::new());
+
+        let c = Container::new("foo".into(), Some("description of foo".into()));
+        assert!(c.is_ok());
+        let res = root.add_node(c.unwrap().into(), None);
+        assert!(res.is_ok());
+
+        let a = Arc::new(Atomic::new(2084i32));
+        let v = ParamGet::Int(ValueBuilder::new(a.clone() as _).build());
+        let v = vec![v];
+        let m = crate::node::Get::new("baz".into(), None, v.into_iter());
+
+        let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
+        assert!(res.is_ok());
     }
 }
