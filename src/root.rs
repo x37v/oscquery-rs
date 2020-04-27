@@ -111,9 +111,6 @@ impl Serialize for NodeWrapper {
             m.serialize_entry("DESCRIPTION".into(), d)?;
         }
         m.serialize_entry("FULL_PATH".into(), &self.full_path)?;
-        if let Some(t) = n.type_string() {
-            m.serialize_entry("TYPE".into(), &t)?;
-        }
         match n {
             Node::Get(..) | Node::GetSet(..) => {
                 m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
@@ -123,7 +120,10 @@ impl Serialize for NodeWrapper {
         match n {
             Node::Container(..) => (),
             _ => {
-                m.serialize_entry("VALUE".into(), &NodeRangeWrapper(n))?;
+                if let Some(t) = n.type_string() {
+                    m.serialize_entry("TYPE".into(), &t)?;
+                }
+                m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
             }
         };
         m.serialize_entry("FULL_PATH".into(), &self.full_path)?;
