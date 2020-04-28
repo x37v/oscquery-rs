@@ -1,10 +1,12 @@
 use crate::node::*;
-use petgraph::stable_graph::{NodeIndex, StableGraph};
+use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+type Graph = StableGraph<NodeWrapper, ()>;
+
 struct RootInner {
-    graph: StableGraph<NodeWrapper, ()>,
+    graph: Graph,
     root: NodeIndex,
 }
 
@@ -15,6 +17,17 @@ pub struct Root {
 struct NodeWrapper {
     full_path: String,
     node: Node,
+}
+
+struct NodeSerializeWrapper<'a> {
+    node: &'a NodeWrapper,
+    graph: &'a Graph,
+    neighbors: WalkNeighbors<u32>,
+}
+
+struct NodeSerializeContentsWrapper<'a> {
+    graph: &'a Graph,
+    neighbors: WalkNeighbors<u32>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -103,18 +116,45 @@ impl Root {
     }
 }
 
-impl Serialize for NodeWrapper {
+impl Serialize for Root {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let root = self.read_locked().expect("failed to read lock");
+        serializer.serialize_some(&*root)
+    }
+}
+
+impl Serialize for RootInner {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let root = self
+            .graph
+            .node_weight(self.root)
+            .expect("root must be in graph");
+        serializer.serialize_some(&NodeSerializeWrapper {
+            node: root,
+            graph: &self.graph,
+            neighbors: self.graph.neighbors(self.root).detach(),
+        })
+    }
+}
+
+impl<'a> Serialize for NodeSerializeWrapper<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         let mut m = serializer.serialize_map(None)?;
-        let n = &self.node;
+        let n = &self.node.node;
         m.serialize_entry("ACCESS".into(), &n.access())?;
         if let Some(d) = n.description() {
             m.serialize_entry("DESCRIPTION".into(), d)?;
         }
-        m.serialize_entry("FULL_PATH".into(), &self.full_path)?;
+        m.serialize_entry("FULL_PATH".into(), &(self.node.full_path))?;
         match n {
             Node::Get(..) | Node::GetSet(..) => {
                 m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
@@ -122,7 +162,15 @@ impl Serialize for NodeWrapper {
             _ => (),
         };
         match n {
-            Node::Container(..) => (),
+            Node::Container(..) => {
+                m.serialize_entry(
+                    "CONTENTS".into(),
+                    &NodeSerializeContentsWrapper {
+                        graph: self.graph,
+                        neighbors: self.neighbors.clone(),
+                    },
+                )?;
+            }
             _ => {
                 if let Some(t) = n.type_string() {
                     m.serialize_entry("TYPE".into(), &t)?;
@@ -130,10 +178,28 @@ impl Serialize for NodeWrapper {
                 m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
             }
         };
-        m.serialize_entry("FULL_PATH".into(), &self.full_path)?;
 
-        //TODO contents
+        m.end()
+    }
+}
 
+impl<'a> Serialize for NodeSerializeContentsWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut m = serializer.serialize_map(None)?;
+        let mut neighbors = self.neighbors.clone();
+        while let Some(index) = neighbors.next_node(self.graph) {
+            if let Some(node) = self.graph.node_weight(index) {
+                let w = NodeSerializeWrapper {
+                    node: &node,
+                    graph: self.graph,
+                    neighbors: self.graph.neighbors(index).detach(),
+                };
+                m.serialize_entry(&node.node.address(), &w)?;
+            }
+        }
         m.end()
     }
 }
@@ -224,6 +290,52 @@ mod tests {
         assert!(h.join().is_ok());
     }
 
+    use serde_json::json;
+    /*
+    Object(
+    {
+        "ACCESS": Number(0),
+        "CONTENTS": Object({
+            "foo": Object({
+                "ACCESS": Number(0),
+                "CONTENTS": Object({
+                    "bar": Object({
+                        "ACCESS": Number(1),
+                        "FULL_PATH": String("/foo/bar"),
+                        "RANGE": Array([Object({})]),
+                        "TYPE": String("i"),
+                        "VALUE": Array([Number(2084)])
+                    })
+                }),
+                "DESCRIPTION": String("description of foo"),
+                "FULL_PATH": String("/foo")
+            })
+        }),
+        "DESCRIPTION": String("root node"),
+        "FULL_PATH": String("/")}
+    );
+    Object({
+        "ACCESS": Number(0),
+        "CONTENTS": Object({
+            "foo": Object({
+                "ACCESS": Number(0),
+                "CONTENTS": Object({
+                    "bar": Object({
+                        "ACCESS": Number(1),
+                        "CLIP_MODE": Array([String("none")]),
+                        "FULL_PATH": String("/foo/bar"),
+                        "RANGE": Array([Object({})]),
+                        "VALUE": Array([Number(2084)])})}),
+                            "DESCRIPTION": String("description of foo"),
+                            "FULL_PATH": String("/foo"),
+                            "VALUE": String("i")
+            })
+        }),
+        "DESCRIPTION": String("root node"),
+        "FULL_PATH": String("/")
+    })
+    */
+
     #[test]
     fn serialize() {
         let root = Arc::new(Root::new());
@@ -236,9 +348,38 @@ mod tests {
         let a = Arc::new(Atomic::new(2084i32));
         let v = ParamGet::Int(ValueBuilder::new(a.clone() as _).build());
         let v = vec![v];
-        let m = crate::node::Get::new("baz".into(), None, v.into_iter());
+        let m = crate::node::Get::new("bar".into(), None, v.into_iter());
 
         let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
         assert!(res.is_ok());
+
+        let j = serde_json::to_value(root);
+        assert!(j.is_ok());
+        assert_eq!(
+            j.unwrap(),
+            json!({
+                "ACCESS": 0,
+                "DESCRIPTION": "root node",
+                "FULL_PATH": "/",
+                "CONTENTS": {
+                    "foo": {
+                        "ACCESS": 0,
+                        "DESCRIPTION": "description of foo",
+                        "FULL_PATH": "/foo",
+                        "CONTENTS": {
+                            "bar": {
+                                "ACCESS": 1,
+                                "FULL_PATH": "/foo/bar",
+                                "VALUE": [2084],
+                                "TYPE": "i",
+                                "RANGE": [{}],
+                                //"CLIP_MODE": ["none"]
+                            }
+                        }
+                    }
+                }
+            })
+            .clone()
+        );
     }
 }
