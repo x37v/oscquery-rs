@@ -292,50 +292,6 @@ mod tests {
     }
 
     use serde_json::json;
-    /*
-    Object(
-    {
-        "ACCESS": Number(0),
-        "CONTENTS": Object({
-            "foo": Object({
-                "ACCESS": Number(0),
-                "CONTENTS": Object({
-                    "bar": Object({
-                        "ACCESS": Number(1),
-                        "FULL_PATH": String("/foo/bar"),
-                        "RANGE": Array([Object({})]),
-                        "TYPE": String("i"),
-                        "VALUE": Array([Number(2084)])
-                    })
-                }),
-                "DESCRIPTION": String("description of foo"),
-                "FULL_PATH": String("/foo")
-            })
-        }),
-        "DESCRIPTION": String("root node"),
-        "FULL_PATH": String("/")}
-    );
-    Object({
-        "ACCESS": Number(0),
-        "CONTENTS": Object({
-            "foo": Object({
-                "ACCESS": Number(0),
-                "CONTENTS": Object({
-                    "bar": Object({
-                        "ACCESS": Number(1),
-                        "CLIP_MODE": Array([String("none")]),
-                        "FULL_PATH": String("/foo/bar"),
-                        "RANGE": Array([Object({})]),
-                        "VALUE": Array([Number(2084)])})}),
-                            "DESCRIPTION": String("description of foo"),
-                            "FULL_PATH": String("/foo"),
-                            "VALUE": String("i")
-            })
-        }),
-        "DESCRIPTION": String("root node"),
-        "FULL_PATH": String("/")
-    })
-    */
 
     #[test]
     fn serialize() {
