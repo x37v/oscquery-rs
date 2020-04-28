@@ -114,6 +114,9 @@ impl Root {
             None => self.add(node, None),
         }
     }
+
+    //TODO remove_node
+    //ADD method with /long/path/to/leaf so we don't have to add each individual container
 }
 
 impl Serialize for Root {
