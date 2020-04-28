@@ -11,7 +11,7 @@ license-file = "LICENSE-MIT"
 petgraph = "0.5.0"
 atomic = "0.4.5"
 serde_json = "1.0.51"
-serde = { version = "1.0.106", features = ["derive"] }
+serde = { version = "1.0.106", features = ["derive", "rc"] }
 
 [dev-dependencies]
 assert_matches = "1.2"
