@@ -176,6 +176,7 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
                     m.serialize_entry("TYPE".into(), &t)?;
                 }
                 m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
+                m.serialize_entry("CLIP_MODE".into(), &NodeClipModeWrapper(n))?;
             }
         };
 
@@ -373,7 +374,7 @@ mod tests {
                                 "VALUE": [2084],
                                 "TYPE": "i",
                                 "RANGE": [{}],
-                                //"CLIP_MODE": ["none"]
+                                "CLIP_MODE": ["none"]
                             }
                         }
                     }

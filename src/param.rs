@@ -183,6 +183,66 @@ impl<'a> Serialize for ParamGetSetRangeWrapper<'a> {
     }
 }
 
+pub(crate) struct ParamGetClipModeWrapper<'a>(pub(crate) &'a ParamGet);
+impl<'a> Serialize for ParamGetClipModeWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            ParamGet::Int(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGet::Float(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGet::String(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGet::Time(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGet::Long(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGet::Double(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGet::Char(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGet::Midi(..) => serializer.serialize_none(),
+            ParamGet::Bool(v) => serializer.serialize_some(v.clip_mode()),
+        }
+    }
+}
+
+pub(crate) struct ParamSetClipModeWrapper<'a>(pub(crate) &'a ParamSet);
+impl<'a> Serialize for ParamSetClipModeWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            ParamSet::Int(v) => serializer.serialize_some(v.clip_mode()),
+            ParamSet::Float(v) => serializer.serialize_some(v.clip_mode()),
+            ParamSet::String(v) => serializer.serialize_some(v.clip_mode()),
+            ParamSet::Time(v) => serializer.serialize_some(v.clip_mode()),
+            ParamSet::Long(v) => serializer.serialize_some(v.clip_mode()),
+            ParamSet::Double(v) => serializer.serialize_some(v.clip_mode()),
+            ParamSet::Char(v) => serializer.serialize_some(v.clip_mode()),
+            ParamSet::Midi(..) => serializer.serialize_none(),
+            ParamSet::Bool(v) => serializer.serialize_some(v.clip_mode()),
+        }
+    }
+}
+
+pub(crate) struct ParamGetSetClipModeWrapper<'a>(pub(crate) &'a ParamGetSet);
+impl<'a> Serialize for ParamGetSetClipModeWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            ParamGetSet::Int(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGetSet::Float(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGetSet::String(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGetSet::Time(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGetSet::Long(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGetSet::Double(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGetSet::Char(v) => serializer.serialize_some(v.clip_mode()),
+            ParamGetSet::Midi(..) => serializer.serialize_none(),
+            ParamGetSet::Bool(v) => serializer.serialize_some(v.clip_mode()),
+        }
+    }
+}
+
 impl OSCTypeStr for ParamSet {
     fn osc_type_str(&self) -> &'static str {
         match self {

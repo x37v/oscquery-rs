@@ -242,6 +242,39 @@ impl<'a> Serialize for NodeRangeWrapper<'a> {
     }
 }
 
+pub(crate) struct NodeClipModeWrapper<'a>(pub(crate) &'a Node);
+impl<'a> Serialize for NodeClipModeWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            Node::Container(..) => serializer.serialize_none(),
+            Node::Get(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetClipModeWrapper(v))?;
+                }
+                seq.end()
+            }
+            Node::Set(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamSetClipModeWrapper(v))?;
+                }
+                seq.end()
+            }
+            Node::GetSet(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetSetClipModeWrapper(v))?;
+                }
+                seq.end()
+            }
+        }
+    }
+}
+
 impl From<Container> for Node {
     fn from(n: Container) -> Self {
         Self::Container(n)
