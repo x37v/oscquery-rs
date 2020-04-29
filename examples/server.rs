@@ -5,8 +5,7 @@ use oscquery::service::ServiceHandle;
 use oscquery::value::*;
 use std::sync::Arc;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let root = Arc::new(Root::new());
     let c = oscquery::node::Container::new("foo".into(), Some("description of foo".into()));
     assert!(c.is_ok());
