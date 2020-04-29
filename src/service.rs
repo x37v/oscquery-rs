@@ -1,16 +1,11 @@
 use crate::root::Root;
-use hyper::http;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Error, Request, Response, Server, StatusCode};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
 
-use std::convert::Infallible;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Error, Response, Server};
+use std::sync::Arc;
 
 pub struct ServiceHandle {
-    tx: tokio::sync::oneshot::Sender<()>,
+    tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl ServiceHandle {
@@ -19,11 +14,10 @@ impl ServiceHandle {
         let make_service = make_service_fn(move |_| {
             let root = root.clone();
             async move {
-                let root = root.clone();
                 Ok::<_, Error>(service_fn(move |_req| {
                     let root = root.clone();
                     async move {
-                        let s = serde_json::to_value(root.clone()).unwrap().to_string();
+                        let s = serde_json::to_value(root).unwrap().to_string();
                         Ok::<_, Error>(Response::new(Body::from(s)))
                     }
                 }))
@@ -45,6 +39,14 @@ impl ServiceHandle {
             });
         });
 
-        Self { tx }
+        Self { tx: Some(tx) }
+    }
+}
+
+impl Drop for ServiceHandle {
+    fn drop(&mut self) {
+        if let Some(tx) = self.tx.take() {
+            let _ = tx.send(());
+        }
     }
 }
