@@ -9,7 +9,7 @@ pub struct ServiceHandle {
 }
 
 impl ServiceHandle {
-    pub fn new(root: Arc<Root>) -> Self {
+    pub fn new(root: Arc<Root>, port: u16) -> Self {
         let root = root.clone();
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         std::thread::spawn(move || {
@@ -32,7 +32,7 @@ impl ServiceHandle {
                         }))
                     }
                 });
-                let server = Server::bind(&([127, 0, 0, 1], 3000).into()).serve(make_service);
+                let server = Server::bind(&([127, 0, 0, 1], port).into()).serve(make_service);
 
                 let graceful = server.with_graceful_shutdown(async {
                     rx.await.ok();

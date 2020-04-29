@@ -19,7 +19,7 @@ fn main() {
 
     let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
     assert!(res.is_ok());
-    let _handle = ServiceHandle::new(root);
+    let _handle = ServiceHandle::new(root, 3000);
     loop {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
