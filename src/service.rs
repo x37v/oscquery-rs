@@ -31,7 +31,11 @@ impl ServiceHandle {
         });
 
         std::thread::spawn(move || {
-            let mut rt = tokio::runtime::Runtime::new().unwrap(); //todo ?
+            let mut rt = tokio::runtime::Builder::new()
+                .threaded_scheduler()
+                .enable_all()
+                .build()
+                .unwrap();
             rt.block_on(async {
                 if let Err(e) = graceful.await {
                     eprintln!("server error: {}", e);
