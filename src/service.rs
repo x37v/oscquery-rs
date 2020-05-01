@@ -1,8 +1,8 @@
 use crate::root::Root;
 
 use futures::future;
-use hyper::service::{make_service_fn, service_fn, Service};
-use hyper::{Body, Error, Request, Response, Server};
+use hyper::service::Service;
+use hyper::{header, Body, Request, Response, Server};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -39,7 +39,11 @@ impl Service<Request<Body>> for Svc {
 
         let s = serde_json::to_value(self.root.clone()).unwrap().to_string();
         let body = Body::from(s);
-        let rsp = rsp.status(200).body(body).unwrap();
+        let var_name = rsp
+            .status(200)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(body);
+        let rsp = var_name.unwrap();
         future::ok(rsp)
     }
 }
