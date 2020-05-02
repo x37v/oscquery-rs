@@ -4,7 +4,7 @@ use crate::root::Root;
 use futures::future;
 use hyper::service::Service;
 use hyper::{header, Body, Method, Request, Response, Server};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -26,6 +26,10 @@ struct PathSerializeWrapper<'a> {
     param: Option<NodeQueryParam>,
 }
 
+struct HostInfoWrapper {
+    root: Arc<Root>,
+}
+
 impl<'a> Serialize for PathSerializeWrapper<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -39,6 +43,44 @@ impl<'a> Serialize for PathSerializeWrapper<'a> {
                     Err(serde::ser::Error::custom("path not in namespace"))
                 }
             })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub struct Extensions {
+    access: bool,
+    value: bool,
+    range: bool,
+    description: bool,
+    clipmode: bool,
+    //TODO more
+}
+
+impl Default for Extensions {
+    fn default() -> Self {
+        Self {
+            access: true,
+            value: true,
+            range: true,
+            description: true,
+            clipmode: true,
+        }
+    }
+}
+
+impl Serialize for HostInfoWrapper {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut m = serializer.serialize_map(None)?;
+        if let Some(name) = self.root.name() {
+            m.serialize_entry("NAME".into(), &name)?;
+        }
+        let e: Extensions = Default::default();
+        m.serialize_entry("EXTENSIONS".into(), &e)?;
+        m.end()
     }
 }
 
@@ -56,10 +98,15 @@ impl Service<Request<Body>> for Svc {
             let mut param: Option<NodeQueryParam> = None;
             if let Some(p) = req.uri().query() {
                 if p == "HOST_INFO" {
+                    let w = HostInfoWrapper {
+                        root: self.root.clone(),
+                    };
                     return future::ok(
                         Response::builder()
                             .status(200)
-                            .body(Body::from("TODO".to_string()))
+                            .body(Body::from(
+                                serde_json::to_string(&w).expect("failed to HostInfoWrapper"),
+                            ))
                             .unwrap(),
                     );
                 } else {
