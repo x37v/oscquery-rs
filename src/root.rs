@@ -7,6 +7,7 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 type Graph = StableGraph<NodeWrapper, ()>;
 
 struct RootInner {
+    name: Option<String>,
     graph: Graph,
     root: NodeIndex,
     //for fast lookup by full path
@@ -39,30 +40,10 @@ pub enum NodeHandle {
     Method(NodeIndex),
 }
 
-impl Default for RootInner {
-    fn default() -> Self {
-        let mut graph = StableGraph::default();
-        let root = graph.add_node(NodeWrapper {
-            full_path: "/".to_string(),
-            node: Node::Container(Container {
-                address: "".to_string(), //invalid, but unchecked by default access
-                description: Some("root node".to_string()),
-            }),
-        });
-        let mut index_map = HashMap::new();
-        index_map.insert("/".to_string(), root);
-        Self {
-            graph,
-            root,
-            index_map,
-        }
-    }
-}
-
 impl Root {
-    pub fn new() -> Self {
+    pub fn new(name: Option<String>) -> Self {
         Self {
-            inner: RwLock::new(RootInner::default()),
+            inner: RwLock::new(RootInner::new(name)),
         }
     }
 
@@ -122,6 +103,25 @@ impl Serialize for Root {
 }
 
 impl RootInner {
+    pub fn new(name: Option<String>) -> Self {
+        let mut graph = StableGraph::default();
+        let root = graph.add_node(NodeWrapper {
+            full_path: "/".to_string(),
+            node: Node::Container(Container {
+                address: "".to_string(), //invalid, but unchecked by default access
+                description: Some("root node".to_string()),
+            }),
+        });
+        let mut index_map = HashMap::new();
+        index_map.insert("/".to_string(), root);
+        Self {
+            name,
+            graph,
+            root,
+            index_map,
+        }
+    }
+
     pub fn serialize_node<F, S>(&self, path: &str, f: F) -> Result<S::Ok, S::Error>
     where
         F: FnOnce(Option<&NodeSerializeWrapper>) -> Result<S::Ok, S::Error>,
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn basic_expectations() {
-        let root = Root::new();
+        let root = Root::new(Some("test".into()));
 
         let c = Container::new("foo".into(), Some("description of foo".into()));
         assert!(c.is_ok());
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn is_send_and_sync() {
-        let root = Arc::new(Root::new());
+        let root = Arc::new(Root::new(None));
 
         let c = Container::new("foo".into(), Some("description of foo".into()));
         assert!(c.is_ok());
@@ -347,7 +347,7 @@ mod tests {
 
     #[test]
     fn serialize() {
-        let root = Arc::new(Root::new());
+        let root = Arc::new(Root::new(Some("test".into())));
 
         let c = Container::new("foo".into(), Some("description of foo".into()));
         assert!(c.is_ok());

@@ -6,7 +6,7 @@ use oscquery::value::*;
 use std::sync::Arc;
 
 fn main() {
-    let root = Arc::new(Root::new());
+    let root = Arc::new(Root::new(Some("server example".into())));
     let c = oscquery::node::Container::new("foo".into(), Some("description of foo".into()));
     assert!(c.is_ok());
     let res = root.add_node(c.unwrap().into(), None);
