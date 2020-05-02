@@ -1,9 +1,10 @@
+use crate::node::NodeQueryParam;
 use crate::root::Root;
 
 use futures::future;
 use hyper::service::Service;
 use hyper::{header, Body, Method, Request, Response, Server};
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -22,6 +23,7 @@ struct MakeSvc {
 struct PathSerializeWrapper<'a> {
     root: Arc<Root>,
     path: &'a str,
+    param: Option<NodeQueryParam>,
 }
 
 impl<'a> Serialize for PathSerializeWrapper<'a> {
@@ -29,13 +31,14 @@ impl<'a> Serialize for PathSerializeWrapper<'a> {
     where
         S: Serializer,
     {
-        self.root.serialize_node::<_, S>(self.path, move |n| {
-            if let Some(n) = n {
-                serializer.serialize_some(n)
-            } else {
-                Err(serde::ser::Error::custom("path not in namespace"))
-            }
-        })
+        self.root
+            .serialize_node::<_, S>(self.path, self.param, move |n| {
+                if let Some(n) = n {
+                    serializer.serialize_some(n)
+                } else {
+                    Err(serde::ser::Error::custom("path not in namespace"))
+                }
+            })
     }
 }
 
@@ -50,9 +53,35 @@ impl Service<Request<Body>> for Svc {
 
     fn call(&mut self, req: Request<Body>) -> Self::Future {
         let rsp = if req.method() == &Method::GET {
+            let mut param: Option<NodeQueryParam> = None;
+            if let Some(p) = req.uri().query() {
+                if p == "HOST_INFO" {
+                    return future::ok(
+                        Response::builder()
+                            .status(200)
+                            .body(Body::from("TODO".to_string()))
+                            .unwrap(),
+                    );
+                } else {
+                    let p: Result<NodeQueryParam, _> =
+                        serde_json::from_value(serde_json::Value::String(p.to_string()));
+                    match p {
+                        Ok(p) => param = Some(p),
+                        Err(e) => {
+                            return future::ok(
+                                Response::builder()
+                                    .status(400)
+                                    .body(Body::from(e.to_string()))
+                                    .unwrap(),
+                            );
+                        }
+                    };
+                }
+            };
             let s = PathSerializeWrapper {
                 root: self.root.clone(),
                 path: req.uri().path(),
+                param,
             };
             if let Ok(s) = serde_json::to_string(&s) {
                 Some(
