@@ -1,7 +1,7 @@
 use crate::param::OSCTypeStr;
 use crate::param::*;
 
-use serde::{ser::SerializeSeq, Serialize, Serializer};
+use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
 pub fn address_valid(address: String) -> Result<String, &'static str> {
@@ -19,6 +19,17 @@ pub enum Access {
     ReadOnly = 1,
     WriteOnly = 2,
     ReadWrite = 3,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NodeQueryParam {
+    Value,
+    Type,
+    Range,
+    ClipMode,
+    Access,
+    Description,
 }
 
 //types:
