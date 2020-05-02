@@ -27,6 +27,7 @@ pub struct NodeSerializeWrapper<'a> {
     node: &'a NodeWrapper,
     graph: &'a Graph,
     neighbors: WalkNeighbors<u32>,
+    param: Option<NodeQueryParam>,
 }
 
 struct NodeSerializeContentsWrapper<'a> {
@@ -81,14 +82,19 @@ impl Root {
     //TODO remove_node
     //ADD method with /long/path/to/leaf so we don't have to add each individual container
 
-    pub fn serialize_node<F, S>(&self, path: &str, f: F) -> Result<S::Ok, S::Error>
+    pub fn serialize_node<F, S>(
+        &self,
+        path: &str,
+        param: Option<NodeQueryParam>,
+        f: F,
+    ) -> Result<S::Ok, S::Error>
     where
         F: FnOnce(Option<&NodeSerializeWrapper>) -> Result<S::Ok, S::Error>,
         S: Serializer,
     {
         self.read_locked()
             .expect("failed to read lock")
-            .serialize_node::<F, S>(path, f)
+            .serialize_node::<F, S>(path, param, f)
     }
 }
 
@@ -122,7 +128,12 @@ impl RootInner {
         }
     }
 
-    pub fn serialize_node<F, S>(&self, path: &str, f: F) -> Result<S::Ok, S::Error>
+    pub fn serialize_node<F, S>(
+        &self,
+        path: &str,
+        param: Option<NodeQueryParam>,
+        f: F,
+    ) -> Result<S::Ok, S::Error>
     where
         F: FnOnce(Option<&NodeSerializeWrapper>) -> Result<S::Ok, S::Error>,
         S: Serializer,
@@ -133,6 +144,7 @@ impl RootInner {
                     node,
                     graph: &self.graph,
                     neighbors: self.graph.neighbors(*index).detach(),
+                    param,
                 })),
                 None => f(None),
             },
@@ -183,7 +195,7 @@ impl Serialize for RootInner {
     where
         S: Serializer,
     {
-        self.serialize_node::<_, S>(&"/", move |n| {
+        self.serialize_node::<_, S>(&"/", None, move |n| {
             serializer.serialize_some(n.expect("root must be in graph"))
         })
     }
@@ -196,33 +208,84 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
     {
         let mut m = serializer.serialize_map(None)?;
         let n = &self.node.node;
-        m.serialize_entry("ACCESS".into(), &n.access())?;
-        if let Some(d) = n.description() {
-            m.serialize_entry("DESCRIPTION".into(), d)?;
-        }
-        m.serialize_entry("FULL_PATH".into(), &(self.node.full_path))?;
-        match n {
-            Node::Get(..) | Node::GetSet(..) => {
-                m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
-            }
-            _ => (),
-        };
-        match n {
-            Node::Container(..) => {
-                m.serialize_entry(
-                    "CONTENTS".into(),
-                    &NodeSerializeContentsWrapper {
-                        graph: self.graph,
-                        neighbors: self.neighbors.clone(),
-                    },
-                )?;
-            }
-            _ => {
-                if let Some(t) = n.type_string() {
-                    m.serialize_entry("TYPE".into(), &t)?;
+        let empty: Option<()> = None;
+        match self.param {
+            None => {
+                m.serialize_entry("ACCESS".into(), &n.access())?;
+                if let Some(d) = n.description() {
+                    m.serialize_entry("DESCRIPTION".into(), d)?;
                 }
-                m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
-                m.serialize_entry("CLIP_MODE".into(), &NodeClipModeWrapper(n))?;
+                m.serialize_entry("FULL_PATH".into(), &(self.node.full_path))?;
+                match n {
+                    Node::Get(..) | Node::GetSet(..) => {
+                        m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
+                    }
+                    _ => (),
+                };
+                match n {
+                    Node::Container(..) => {
+                        m.serialize_entry(
+                            "CONTENTS".into(),
+                            &NodeSerializeContentsWrapper {
+                                graph: self.graph,
+                                neighbors: self.neighbors.clone(),
+                            },
+                        )?;
+                    }
+                    _ => {
+                        if let Some(t) = n.type_string() {
+                            m.serialize_entry("TYPE".into(), &t)?;
+                        }
+                        m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
+                        m.serialize_entry("CLIP_MODE".into(), &NodeClipModeWrapper(n))?;
+                    }
+                };
+            }
+            Some(NodeQueryParam::Access) => {
+                m.serialize_entry("ACCESS".into(), &n.access())?;
+            }
+            Some(NodeQueryParam::Description) => {
+                m.serialize_entry("DESCRIPTION".into(), n.description())?;
+            }
+            Some(NodeQueryParam::Value) => {
+                match n {
+                    Node::Get(..) | Node::GetSet(..) => {
+                        m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
+                    }
+                    _ => {
+                        m.serialize_entry("VALUE".into(), &empty)?;
+                    }
+                };
+            }
+            Some(NodeQueryParam::Range) => {
+                match n {
+                    Node::Container(..) => {
+                        m.serialize_entry("RANGE".into(), &empty)?;
+                    }
+                    _ => {
+                        m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
+                    }
+                };
+            }
+            Some(NodeQueryParam::ClipMode) => {
+                match n {
+                    Node::Container(..) => {
+                        m.serialize_entry("CLIP_MODE".into(), &empty)?;
+                    }
+                    _ => {
+                        m.serialize_entry("CLIP_MODE".into(), &NodeClipModeWrapper(n))?;
+                    }
+                };
+            }
+            Some(NodeQueryParam::Type) => {
+                match n {
+                    Node::Container(..) => {
+                        m.serialize_entry("TYPE".into(), &empty)?;
+                    }
+                    _ => {
+                        m.serialize_entry("TYPE".into(), &n.type_string())?;
+                    }
+                };
             }
         };
 
@@ -243,6 +306,7 @@ impl<'a> Serialize for NodeSerializeContentsWrapper<'a> {
                     node: &node,
                     graph: self.graph,
                     neighbors: self.graph.neighbors(index).detach(),
+                    param: None,
                 };
                 m.serialize_entry(&node.node.address(), &w)?;
             }
