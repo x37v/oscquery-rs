@@ -100,7 +100,7 @@ impl Root {
     //TODO remove_node
     //ADD method with /long/path/to/leaf so we don't have to add each individual container
 
-    pub fn serialize_node<F, S>(&self, path: String, f: F) -> Result<S::Ok, S::Error>
+    pub fn serialize_node<F, S>(&self, path: &str, f: F) -> Result<S::Ok, S::Error>
     where
         F: FnOnce(Option<&NodeSerializeWrapper>) -> Result<S::Ok, S::Error>,
         S: Serializer,
@@ -122,12 +122,12 @@ impl Serialize for Root {
 }
 
 impl RootInner {
-    pub fn serialize_node<F, S>(&self, path: String, f: F) -> Result<S::Ok, S::Error>
+    pub fn serialize_node<F, S>(&self, path: &str, f: F) -> Result<S::Ok, S::Error>
     where
         F: FnOnce(Option<&NodeSerializeWrapper>) -> Result<S::Ok, S::Error>,
         S: Serializer,
     {
-        match self.index_map.get(&path) {
+        match self.index_map.get(path) {
             Some(index) => match self.graph.node_weight(index.clone()) {
                 Some(node) => f(Some(&NodeSerializeWrapper {
                     node,
@@ -183,7 +183,7 @@ impl Serialize for RootInner {
     where
         S: Serializer,
     {
-        self.serialize_node::<_, S>("/".into(), move |n| {
+        self.serialize_node::<_, S>(&"/", move |n| {
             serializer.serialize_some(n.expect("root must be in graph"))
         })
     }
