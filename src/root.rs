@@ -48,6 +48,14 @@ impl Root {
         }
     }
 
+    pub fn name(&self) -> Option<String> {
+        if let Ok(inner) = self.read_locked() {
+            inner.name()
+        } else {
+            None
+        }
+    }
+
     fn write_locked(&self) -> Result<RwLockWriteGuard<RootInner>, &'static str> {
         self.inner.write().or_else(|_| Err("poisoned lock"))
     }
@@ -126,6 +134,10 @@ impl RootInner {
             root,
             index_map,
         }
+    }
+
+    pub fn name(&self) -> Option<String> {
+        self.name.clone()
     }
 
     pub fn serialize_node<F, S>(
@@ -237,7 +249,7 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
                             m.serialize_entry("TYPE".into(), &t)?;
                         }
                         m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
-                        m.serialize_entry("CLIP_MODE".into(), &NodeClipModeWrapper(n))?;
+                        m.serialize_entry("CLIPMODE".into(), &NodeClipModeWrapper(n))?;
                     }
                 };
             }
@@ -270,10 +282,10 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
             Some(NodeQueryParam::ClipMode) => {
                 match n {
                     Node::Container(..) => {
-                        m.serialize_entry("CLIP_MODE".into(), &empty)?;
+                        m.serialize_entry("CLIPMODE".into(), &empty)?;
                     }
                     _ => {
-                        m.serialize_entry("CLIP_MODE".into(), &NodeClipModeWrapper(n))?;
+                        m.serialize_entry("CLIPMODE".into(), &NodeClipModeWrapper(n))?;
                     }
                 };
             }
@@ -448,7 +460,7 @@ mod tests {
                                 "VALUE": [2084],
                                 "TYPE": "i",
                                 "RANGE": [{}],
-                                "CLIP_MODE": ["none"]
+                                "CLIPMODE": ["none"]
                             }
                         }
                     }
