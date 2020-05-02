@@ -238,9 +238,11 @@ mod tests {
         assert!(res.is_ok());
 
         let a = Arc::new(Atomic::new(2084i32));
-        let v = ParamGet::Int(ValueBuilder::new(a.clone() as _).build());
-        let v = vec![v];
-        let m = crate::node::Get::new("baz".into(), None, v.into_iter());
+        let m = crate::node::Get::new(
+            "baz".into(),
+            None,
+            vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+        );
 
         //can add a method
         let res = root.add_node(m.unwrap().into(), Some(chandle));
@@ -249,9 +251,11 @@ mod tests {
         let mhandle = res.unwrap();
 
         //fails to add method to method
-        let v = ParamGet::Int(ValueBuilder::new(a.clone() as _).build());
-        let v = vec![v];
-        let m = crate::node::Get::new("biz".into(), None, v.into_iter());
+        let m = crate::node::Get::new(
+            "biz".into(),
+            None,
+            vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+        );
 
         let res = root.add_node(m.unwrap().into(), Some(mhandle));
         assert!(res.is_err());
@@ -269,9 +273,11 @@ mod tests {
         assert!(c.is_ok());
 
         let a = Arc::new(Atomic::new(2084i32));
-        let v = ParamGet::Int(ValueBuilder::new(a.clone() as _).build());
-        let v = vec![v];
-        let m = crate::node::Get::new("baz".into(), None, v.into_iter());
+        let m = crate::node::Get::new(
+            "baz".into(),
+            None,
+            vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+        );
 
         let r = root.clone();
         let h = thread::spawn(move || {
@@ -306,9 +312,11 @@ mod tests {
         assert!(res.is_ok());
 
         let a = Arc::new(Atomic::new(2084i32));
-        let v = ParamGet::Int(ValueBuilder::new(a.clone() as _).build());
-        let v = vec![v];
-        let m = crate::node::Get::new("bar".into(), None, v.into_iter());
+        let m = crate::node::Get::new(
+            "bar".into(),
+            None,
+            vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+        );
 
         let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
         assert!(res.is_ok());

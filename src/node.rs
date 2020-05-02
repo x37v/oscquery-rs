@@ -78,12 +78,12 @@ impl Get {
         params: I,
     ) -> Result<Self, &'static str>
     where
-        I: Iterator<Item = ParamGet>,
+        I: IntoIterator<Item = ParamGet>,
     {
         Ok(Self {
             address: address_valid(address)?,
             description,
-            params: params.collect::<Vec<_>>().into(),
+            params: params.into_iter().collect::<Vec<_>>().into(),
         })
     }
 }
@@ -95,12 +95,12 @@ impl Set {
         params: I,
     ) -> Result<Self, &'static str>
     where
-        I: Iterator<Item = ParamSet>,
+        I: IntoIterator<Item = ParamSet>,
     {
         Ok(Self {
             address: address_valid(address)?,
             description,
-            params: params.collect::<Vec<_>>().into(),
+            params: params.into_iter().collect::<Vec<_>>().into(),
         })
     }
 }
@@ -112,12 +112,12 @@ impl GetSet {
         params: I,
     ) -> Result<Self, &'static str>
     where
-        I: Iterator<Item = ParamGetSet>,
+        I: IntoIterator<Item = ParamGetSet>,
     {
         Ok(Self {
             address: address_valid(address)?,
             description,
-            params: params.collect::<Vec<_>>().into(),
+            params: params.into_iter().collect::<Vec<_>>().into(),
         })
     }
 }
