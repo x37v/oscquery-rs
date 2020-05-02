@@ -54,6 +54,7 @@ pub struct Extensions {
     range: bool,
     description: bool,
     clipmode: bool,
+    unit: bool,
     //TODO more
 }
 
@@ -65,6 +66,7 @@ impl Default for Extensions {
             range: true,
             description: true,
             clipmode: true,
+            unit: true,
         }
     }
 }
