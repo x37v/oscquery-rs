@@ -1,6 +1,7 @@
 use crate::node::*;
 use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
 use serde::{ser::SerializeMap, Serialize, Serializer};
+use std::collections::HashMap;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 type Graph = StableGraph<NodeWrapper, ()>;
@@ -8,6 +9,8 @@ type Graph = StableGraph<NodeWrapper, ()>;
 struct RootInner {
     graph: Graph,
     root: NodeIndex,
+    //for fast lookup by full path
+    index_map: HashMap<String, NodeIndex>,
 }
 
 pub struct Root {
@@ -19,7 +22,7 @@ struct NodeWrapper {
     node: Node,
 }
 
-struct NodeSerializeWrapper<'a> {
+pub struct NodeSerializeWrapper<'a> {
     node: &'a NodeWrapper,
     graph: &'a Graph,
     neighbors: WalkNeighbors<u32>,
@@ -46,7 +49,13 @@ impl Default for RootInner {
                 description: Some("root node".to_string()),
             }),
         });
-        Self { graph, root }
+        let mut index_map = HashMap::new();
+        index_map.insert("/".to_string(), root);
+        Self {
+            graph,
+            root,
+            index_map,
+        }
     }
 }
 
@@ -70,35 +79,8 @@ impl Root {
         node: Node,
         parent_index: Option<NodeIndex>,
     ) -> Result<NodeHandle, (Node, &'static str)> {
-        let cont = match node {
-            Node::Container(_) => true,
-            _ => false,
-        };
         match self.write_locked() {
-            Ok(mut inner) => {
-                let (parent_index, full_path) = if let Some(parent_index) = parent_index {
-                    if let Some(parent) = inner.graph.node_weight(parent_index.clone()) {
-                        Ok((parent_index, parent.full_path.clone()))
-                    } else {
-                        return Err((node, "parent not in graph"));
-                    }
-                } else {
-                    Ok((inner.root, "".to_string()))
-                }?;
-
-                //compute the full path
-                let full_path = format!("{}/{}", full_path, node.address());
-                let node = NodeWrapper { node, full_path };
-
-                //actually add
-                let index = inner.graph.add_node(node);
-                let _ = inner.graph.add_edge(parent_index, index, ());
-                Ok(if cont {
-                    NodeHandle::Container(index)
-                } else {
-                    NodeHandle::Method(index)
-                })
-            }
+            Ok(mut inner) => inner.add(node, parent_index),
             Err(s) => Err((node, s)),
         }
     }
@@ -117,6 +99,16 @@ impl Root {
 
     //TODO remove_node
     //ADD method with /long/path/to/leaf so we don't have to add each individual container
+
+    pub fn serialize_node<F, S>(&self, path: String, f: F) -> Result<S::Ok, S::Error>
+    where
+        F: FnOnce(Option<&NodeSerializeWrapper>) -> Result<S::Ok, S::Error>,
+        S: Serializer,
+    {
+        self.read_locked()
+            .expect("failed to read lock")
+            .serialize_node::<F, S>(path, f)
+    }
 }
 
 impl Serialize for Root {
@@ -129,19 +121,70 @@ impl Serialize for Root {
     }
 }
 
+impl RootInner {
+    pub fn serialize_node<F, S>(&self, path: String, f: F) -> Result<S::Ok, S::Error>
+    where
+        F: FnOnce(Option<&NodeSerializeWrapper>) -> Result<S::Ok, S::Error>,
+        S: Serializer,
+    {
+        match self.index_map.get(&path) {
+            Some(index) => match self.graph.node_weight(index.clone()) {
+                Some(node) => f(Some(&NodeSerializeWrapper {
+                    node,
+                    graph: &self.graph,
+                    neighbors: self.graph.neighbors(*index).detach(),
+                })),
+                None => f(None),
+            },
+            None => f(None),
+        }
+    }
+
+    pub fn add(
+        &mut self,
+        node: Node,
+        parent_index: Option<NodeIndex>,
+    ) -> Result<NodeHandle, (Node, &'static str)> {
+        let cont = match node {
+            Node::Container(_) => true,
+            _ => false,
+        };
+        let (parent_index, full_path) = if let Some(parent_index) = parent_index {
+            if let Some(parent) = self.graph.node_weight(parent_index.clone()) {
+                Ok((parent_index, parent.full_path.clone()))
+            } else {
+                return Err((node, "parent not in graph"));
+            }
+        } else {
+            Ok((self.root, "".to_string()))
+        }?;
+
+        //compute the full path
+        let full_path = format!("{}/{}", full_path, node.address());
+        let node = NodeWrapper {
+            node,
+            full_path: full_path.clone(),
+        };
+
+        //actually add
+        let index = self.graph.add_node(node);
+        self.index_map.insert(full_path, index);
+        let _ = self.graph.add_edge(parent_index, index, ());
+        Ok(if cont {
+            NodeHandle::Container(index)
+        } else {
+            NodeHandle::Method(index)
+        })
+    }
+}
+
 impl Serialize for RootInner {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let root = self
-            .graph
-            .node_weight(self.root)
-            .expect("root must be in graph");
-        serializer.serialize_some(&NodeSerializeWrapper {
-            node: root,
-            graph: &self.graph,
-            neighbors: self.graph.neighbors(self.root).detach(),
+        self.serialize_node::<_, S>("/".into(), move |n| {
+            serializer.serialize_some(n.expect("root must be in graph"))
         })
     }
 }
