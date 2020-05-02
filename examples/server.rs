@@ -18,7 +18,7 @@ fn main() {
         None,
         vec![ParamGet::Int(
             ValueBuilder::new(a.clone() as _)
-                .with_unit("mph".into())
+                .with_unit("speed.mph".into())
                 .build(),
         )],
     );
