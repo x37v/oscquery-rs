@@ -2,7 +2,7 @@ use crate::root::Root;
 
 use futures::future;
 use hyper::service::Service;
-use hyper::{header, Body, Request, Response, Server};
+use hyper::{header, Body, Method, Request, Response, Server};
 use serde::{Serialize, Serializer};
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -49,18 +49,25 @@ impl Service<Request<Body>> for Svc {
     }
 
     fn call(&mut self, req: Request<Body>) -> Self::Future {
-        let rsp = Response::builder();
-        let s = PathSerializeWrapper {
-            root: self.root.clone(),
-            path: req.uri().path(),
-        };
-        let rsp = if let Ok(s) = serde_json::to_string(&s) {
-            rsp.status(200)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(s))
+        let rsp = if req.method() == &Method::GET {
+            let s = PathSerializeWrapper {
+                root: self.root.clone(),
+                path: req.uri().path(),
+            };
+            if let Ok(s) = serde_json::to_string(&s) {
+                Some(
+                    Response::builder()
+                        .status(200)
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(s)),
+                )
+            } else {
+                None
+            }
         } else {
-            rsp.status(404).body(Body::from(Vec::new()))
-        };
+            None
+        }
+        .unwrap_or(Response::builder().status(404).body(Body::from(Vec::new())));
         future::ok(rsp.expect("expected response"))
     }
 }
