@@ -250,6 +250,7 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
                         }
                         m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
                         m.serialize_entry("CLIPMODE".into(), &NodeClipModeWrapper(n))?;
+                        m.serialize_entry("UNIT".into(), &NodeUnitWrapper(n))?;
                     }
                 };
             }
@@ -296,6 +297,16 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
                     }
                     _ => {
                         m.serialize_entry("TYPE".into(), &n.type_string())?;
+                    }
+                };
+            }
+            Some(NodeQueryParam::Unit) => {
+                match n {
+                    Node::Container(..) => {
+                        m.serialize_entry("UNIT".into(), &empty)?;
+                    }
+                    _ => {
+                        m.serialize_entry("UNIT".into(), &NodeUnitWrapper(n))?;
                     }
                 };
             }

@@ -243,6 +243,66 @@ impl<'a> Serialize for ParamGetSetClipModeWrapper<'a> {
     }
 }
 
+pub(crate) struct ParamGetUnitWrapper<'a>(pub(crate) &'a ParamGet);
+impl<'a> Serialize for ParamGetUnitWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            ParamGet::Int(v) => serializer.serialize_some(v.unit()),
+            ParamGet::Float(v) => serializer.serialize_some(v.unit()),
+            ParamGet::String(v) => serializer.serialize_some(v.unit()),
+            ParamGet::Time(v) => serializer.serialize_some(v.unit()),
+            ParamGet::Long(v) => serializer.serialize_some(v.unit()),
+            ParamGet::Double(v) => serializer.serialize_some(v.unit()),
+            ParamGet::Char(v) => serializer.serialize_some(v.unit()),
+            ParamGet::Midi(..) => serializer.serialize_none(),
+            ParamGet::Bool(v) => serializer.serialize_some(v.unit()),
+        }
+    }
+}
+
+pub(crate) struct ParamSetUnitWrapper<'a>(pub(crate) &'a ParamSet);
+impl<'a> Serialize for ParamSetUnitWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            ParamSet::Int(v) => serializer.serialize_some(v.unit()),
+            ParamSet::Float(v) => serializer.serialize_some(v.unit()),
+            ParamSet::String(v) => serializer.serialize_some(v.unit()),
+            ParamSet::Time(v) => serializer.serialize_some(v.unit()),
+            ParamSet::Long(v) => serializer.serialize_some(v.unit()),
+            ParamSet::Double(v) => serializer.serialize_some(v.unit()),
+            ParamSet::Char(v) => serializer.serialize_some(v.unit()),
+            ParamSet::Midi(..) => serializer.serialize_none(),
+            ParamSet::Bool(v) => serializer.serialize_some(v.unit()),
+        }
+    }
+}
+
+pub(crate) struct ParamGetSetUnitWrapper<'a>(pub(crate) &'a ParamGetSet);
+impl<'a> Serialize for ParamGetSetUnitWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            ParamGetSet::Int(v) => serializer.serialize_some(v.unit()),
+            ParamGetSet::Float(v) => serializer.serialize_some(v.unit()),
+            ParamGetSet::String(v) => serializer.serialize_some(v.unit()),
+            ParamGetSet::Time(v) => serializer.serialize_some(v.unit()),
+            ParamGetSet::Long(v) => serializer.serialize_some(v.unit()),
+            ParamGetSet::Double(v) => serializer.serialize_some(v.unit()),
+            ParamGetSet::Char(v) => serializer.serialize_some(v.unit()),
+            ParamGetSet::Midi(..) => serializer.serialize_none(),
+            ParamGetSet::Bool(v) => serializer.serialize_some(v.unit()),
+        }
+    }
+}
+
 impl OSCTypeStr for ParamSet {
     fn osc_type_str(&self) -> &'static str {
         match self {

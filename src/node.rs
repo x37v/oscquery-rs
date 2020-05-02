@@ -30,6 +30,7 @@ pub enum NodeQueryParam {
     ClipMode,
     Access,
     Description,
+    Unit,
 }
 
 //types:
@@ -213,6 +214,39 @@ impl<'a> Serialize for NodeValueWrapper<'a> {
                 let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
                 for v in n.params.iter() {
                     seq.serialize_element(&ParamGetSetValueWrapper(v))?;
+                }
+                seq.end()
+            }
+        }
+    }
+}
+
+pub(crate) struct NodeUnitWrapper<'a>(pub(crate) &'a Node);
+impl<'a> Serialize for NodeUnitWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            Node::Container(..) => serializer.serialize_none(),
+            Node::Get(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetUnitWrapper(v))?;
+                }
+                seq.end()
+            }
+            Node::Set(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamSetUnitWrapper(v))?;
+                }
+                seq.end()
+            }
+            Node::GetSet(n) => {
+                let mut seq = serializer.serialize_seq(Some(n.params.len()))?;
+                for v in n.params.iter() {
+                    seq.serialize_element(&ParamGetSetUnitWrapper(v))?;
                 }
                 seq.end()
             }
