@@ -14,7 +14,7 @@ Only one query parameter is allowed per request
 * `VALUE` : eg `http://localhost:3000/foo/bar?VALUE` -> `{"VALUE": [0.5]}`
 * `TYPE`
 * `RANGE`
-* `CLIP_MODE`
+* `CLIPMODE`
 * `ACCESS`
 * `DESCRIPTION`
 
