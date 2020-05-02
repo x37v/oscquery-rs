@@ -16,7 +16,11 @@ fn main() {
     let m = oscquery::node::Get::new(
         "bar".into(),
         None,
-        vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+        vec![ParamGet::Int(
+            ValueBuilder::new(a.clone() as _)
+                .with_unit("mph".into())
+                .build(),
+        )],
     );
 
     let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
