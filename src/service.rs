@@ -3,6 +3,7 @@ use crate::root::Root;
 use futures::future;
 use hyper::service::Service;
 use hyper::{header, Body, Request, Response, Server};
+use serde::{Serialize, Serializer};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -18,6 +19,26 @@ struct MakeSvc {
     root: Arc<Root>,
 }
 
+struct PathSerializeWrapper<'a> {
+    root: Arc<Root>,
+    path: &'a str,
+}
+
+impl<'a> Serialize for PathSerializeWrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.root.serialize_node::<_, S>(self.path, move |n| {
+            if let Some(n) = n {
+                serializer.serialize_some(n)
+            } else {
+                Err(serde::ser::Error::custom("path not in namespace"))
+            }
+        })
+    }
+}
+
 impl Service<Request<Body>> for Svc {
     type Response = Response<Body>;
     type Error = hyper::Error;
@@ -29,22 +50,18 @@ impl Service<Request<Body>> for Svc {
 
     fn call(&mut self, req: Request<Body>) -> Self::Future {
         let rsp = Response::builder();
-
-        let uri = req.uri();
-        if uri.path() != "/" {
-            let body = Body::from(Vec::new());
-            let rsp = rsp.status(404).body(body).unwrap();
-            return future::ok(rsp);
-        }
-
-        let s = serde_json::to_value(self.root.clone()).unwrap().to_string();
-        let body = Body::from(s);
-        let var_name = rsp
-            .status(200)
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(body);
-        let rsp = var_name.unwrap();
-        future::ok(rsp)
+        let s = PathSerializeWrapper {
+            root: self.root.clone(),
+            path: req.uri().path(),
+        };
+        let rsp = if let Ok(s) = serde_json::to_string(&s) {
+            rsp.status(200)
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(s))
+        } else {
+            rsp.status(404).body(Body::from(Vec::new()))
+        };
+        future::ok(rsp.expect("expected response"))
     }
 }
 
