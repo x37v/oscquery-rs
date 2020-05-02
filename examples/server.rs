@@ -13,9 +13,11 @@ fn main() {
     assert!(res.is_ok());
 
     let a = Arc::new(Atomic::new(2084i32));
-    let v = ParamGet::Int(ValueBuilder::new(a.clone() as _).build());
-    let v = vec![v];
-    let m = oscquery::node::Get::new("bar".into(), None, v.into_iter());
+    let m = oscquery::node::Get::new(
+        "bar".into(),
+        None,
+        vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+    );
 
     let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
     assert!(res.is_ok());
