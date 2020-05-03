@@ -1,7 +1,7 @@
 use ::atomic::Atomic;
 use oscquery::param::*;
 use oscquery::root::Root;
-use oscquery::service::ServiceHandle;
+use oscquery::service::http::ServiceHandle;
 use oscquery::value::*;
 use std::sync::Arc;
 
