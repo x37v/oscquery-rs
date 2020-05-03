@@ -132,13 +132,15 @@ impl Service<Request<Body>> for Svc {
                 path: req.uri().path(),
                 param,
             };
-            if let Ok(s) = serde_json::to_string(&s) {
-                Some(
-                    Response::builder()
+            //might be Null, in which case we should return 204
+            if let Ok(s) = serde_json::to_value(&s) {
+                Some(match s {
+                    serde_json::Value::Null => Response::builder().status(204).body(Body::empty()),
+                    _ => Response::builder()
                         .status(200)
                         .header(header::CONTENT_TYPE, "application/json")
-                        .body(Body::from(s)),
-                )
+                        .body(Body::from(s.to_string())),
+                })
             } else {
                 None
             }
