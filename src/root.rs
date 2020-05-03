@@ -2,11 +2,12 @@ use crate::node::*;
 use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 type Graph = StableGraph<NodeWrapper, ()>;
 
-struct RootInner {
+pub(crate) struct RootInner {
     name: Option<String>,
     graph: Graph,
     root: NodeIndex,
@@ -15,7 +16,7 @@ struct RootInner {
 }
 
 pub struct Root {
-    inner: RwLock<RootInner>,
+    inner: Arc<RwLock<RootInner>>,
 }
 
 struct NodeWrapper {
@@ -44,7 +45,7 @@ pub enum NodeHandle {
 impl Root {
     pub fn new(name: Option<String>) -> Self {
         Self {
-            inner: RwLock::new(RootInner::new(name)),
+            inner: Arc::new(RwLock::new(RootInner::new(name))),
         }
     }
 
