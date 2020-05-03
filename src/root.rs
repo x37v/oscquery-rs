@@ -218,11 +218,10 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
     where
         S: Serializer,
     {
-        let mut m = serializer.serialize_map(None)?;
         let n = &self.node.node;
-        let empty: Option<()> = None;
         match self.param {
             None => {
+                let mut m = serializer.serialize_map(None)?;
                 m.serialize_entry("ACCESS".into(), &n.access())?;
                 if let Some(d) = n.description() {
                     m.serialize_entry("DESCRIPTION".into(), d)?;
@@ -253,66 +252,59 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
                         m.serialize_entry("UNIT".into(), &NodeUnitWrapper(n))?;
                     }
                 };
+                m.end()
             }
             Some(NodeQueryParam::Access) => {
+                let mut m = serializer.serialize_map(None)?;
                 m.serialize_entry("ACCESS".into(), &n.access())?;
+                m.end()
             }
             Some(NodeQueryParam::Description) => {
+                let mut m = serializer.serialize_map(None)?;
                 m.serialize_entry("DESCRIPTION".into(), n.description())?;
+                m.end()
             }
-            Some(NodeQueryParam::Value) => {
-                match n {
-                    Node::Get(..) | Node::GetSet(..) => {
-                        m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
-                    }
-                    _ => {
-                        m.serialize_entry("VALUE".into(), &empty)?;
-                    }
-                };
-            }
-            Some(NodeQueryParam::Range) => {
-                match n {
-                    Node::Container(..) => {
-                        m.serialize_entry("RANGE".into(), &empty)?;
-                    }
-                    _ => {
-                        m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
-                    }
-                };
-            }
-            Some(NodeQueryParam::ClipMode) => {
-                match n {
-                    Node::Container(..) => {
-                        m.serialize_entry("CLIPMODE".into(), &empty)?;
-                    }
-                    _ => {
-                        m.serialize_entry("CLIPMODE".into(), &NodeClipModeWrapper(n))?;
-                    }
-                };
-            }
-            Some(NodeQueryParam::Type) => {
-                match n {
-                    Node::Container(..) => {
-                        m.serialize_entry("TYPE".into(), &empty)?;
-                    }
-                    _ => {
-                        m.serialize_entry("TYPE".into(), &n.type_string())?;
-                    }
-                };
-            }
-            Some(NodeQueryParam::Unit) => {
-                match n {
-                    Node::Container(..) => {
-                        m.serialize_entry("UNIT".into(), &empty)?;
-                    }
-                    _ => {
-                        m.serialize_entry("UNIT".into(), &NodeUnitWrapper(n))?;
-                    }
-                };
-            }
-        };
-
-        m.end()
+            Some(NodeQueryParam::Value) => match n {
+                Node::Get(..) | Node::GetSet(..) => {
+                    let mut m = serializer.serialize_map(None)?;
+                    m.serialize_entry("VALUE".into(), &NodeValueWrapper(n))?;
+                    m.end()
+                }
+                _ => serializer.serialize_none(),
+            },
+            Some(NodeQueryParam::Range) => match n {
+                Node::Container(..) => serializer.serialize_none(),
+                _ => {
+                    let mut m = serializer.serialize_map(None)?;
+                    m.serialize_entry("RANGE".into(), &NodeRangeWrapper(n))?;
+                    m.end()
+                }
+            },
+            Some(NodeQueryParam::ClipMode) => match n {
+                Node::Container(..) => serializer.serialize_none(),
+                _ => {
+                    let mut m = serializer.serialize_map(None)?;
+                    m.serialize_entry("CLIPMODE".into(), &NodeClipModeWrapper(n))?;
+                    m.end()
+                }
+            },
+            Some(NodeQueryParam::Type) => match n {
+                Node::Container(..) => serializer.serialize_none(),
+                _ => {
+                    let mut m = serializer.serialize_map(None)?;
+                    m.serialize_entry("TYPE".into(), &n.type_string())?;
+                    m.end()
+                }
+            },
+            Some(NodeQueryParam::Unit) => match n {
+                Node::Container(..) => serializer.serialize_none(),
+                _ => {
+                    let mut m = serializer.serialize_map(None)?;
+                    m.serialize_entry("UNIT".into(), &NodeUnitWrapper(n))?;
+                    m.end()
+                }
+            },
+        }
     }
 }
 
