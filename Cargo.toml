@@ -1,11 +1,9 @@
 [package]
 name = "oscquery"
 version = "0.1.0"
-authors = ["Alex Norman <xnor@perfectco.com>"]
+authors = ["Alex Norman <alex@x37v.info>"]
 edition = "2018"
 license-file = "LICENSE-MIT"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 petgraph = "0.5.0"
@@ -15,6 +13,7 @@ serde = { version = "1.0.106", features = ["derive", "rc"] }
 hyper = "0.13.5"
 tokio = { version = "0.2.19", features = ["full"] }
 futures = "0.3.4"
+rosc = "0.3.0"
 
 [dev-dependencies]
 assert_matches = "1.2"
