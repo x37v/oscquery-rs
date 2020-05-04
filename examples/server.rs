@@ -3,6 +3,7 @@ use oscquery::param::*;
 use oscquery::root::Root;
 use oscquery::service::http::ServiceHandle;
 use oscquery::value::*;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 fn main() {
@@ -25,7 +26,12 @@ fn main() {
 
     let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
     assert!(res.is_ok());
-    let _handle = ServiceHandle::new(root, 3000);
+
+    let _osc = root.spawn_osc("127.0.0.1:3001");
+    let _handle = ServiceHandle::new(
+        root,
+        &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3000),
+    );
     loop {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
