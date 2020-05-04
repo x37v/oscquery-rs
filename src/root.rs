@@ -1,11 +1,12 @@
 use crate::node::*;
 use crate::service::osc::OscService;
 use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
+use rosc::{OscBundle, OscMessage, OscPacket};
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
-use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 type Graph = StableGraph<NodeWrapper, ()>;
 
@@ -140,6 +141,31 @@ impl RootInner {
             root,
             index_map,
         }
+    }
+
+    fn handle_osc_msg(&self, msg: &OscMessage) {
+        println!("addr {} args {:?}", msg.addr, msg.args);
+        if let Some(index) = self.index_map.get(&msg.addr) {
+            if let Some(node) = self.graph.node_weight(index.clone()) {
+                node.node.osc_update(&msg.args);
+            } else {
+                println!("no node");
+            }
+        } else {
+            println!("no index");
+        }
+    }
+
+    pub fn handle_osc_packet(&self, packet: &OscPacket) {
+        match packet {
+            OscPacket::Message(msg) => self.handle_osc_msg(&msg),
+            OscPacket::Bundle(bundle) => {
+                for p in bundle.content.iter() {
+                    //TODO something with time stamp?
+                    self.handle_osc_packet(p);
+                }
+            }
+        };
     }
 
     pub fn name(&self) -> Option<String> {
