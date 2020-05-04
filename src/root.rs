@@ -320,6 +320,7 @@ impl<'a> Serialize for NodeSerializeWrapper<'a> {
                 _ => {
                     let mut m = serializer.serialize_map(None)?;
                     m.serialize_entry("TYPE".into(), &n.type_string())?;
+
                     m.end()
                 }
             },
@@ -464,7 +465,11 @@ mod tests {
         let m = crate::node::Get::new(
             "bar".into(),
             None,
-            vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+            vec![ParamGet::Int(
+                ValueBuilder::new(a.clone() as _)
+                    .with_unit("distance.m".into())
+                    .build(),
+            )],
         );
 
         let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
@@ -488,6 +493,7 @@ mod tests {
                                 "ACCESS": 1,
                                 "FULL_PATH": "/foo/bar",
                                 "VALUE": [2084],
+                                "UNIT": ["distance.m"],
                                 "TYPE": "i",
                                 "RANGE": [{}],
                                 "CLIPMODE": ["none"]
