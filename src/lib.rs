@@ -1,4 +1,7 @@
-//https://github.com/Vidvox/OSCQueryProposal
+//! # OSCQuery
+//!
+//! A rust implemention of the [OSCQueryProposal](https://github.com/Vidvox/OSCQueryProposal).
+
 #[cfg(test)]
 #[macro_use]
 extern crate assert_matches;

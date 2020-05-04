@@ -4,6 +4,16 @@ use std::sync::Arc;
 
 pub mod atomic;
 
+/// Identify how values outside of the associated `Range` should be handled (clipped).
+///
+/// From the [OSCQueryProposal](https://github.com/Vidvox/OSCQueryProposal)
+///
+/// > The CLIPMODE attribute acts as a "hint" to how the OSC method handles values outside the
+/// > indicated RANGE- "none" indicates that no clipping is performed/the OSC method will try to use
+/// > any value you send it, "low" indicates that values below the min range will be clipped to the
+/// > min range, "high" indicates that values above the max range will be clipped to the max range,
+/// > and "both" is self-explanatory. This attribute is optional, and if it doesn't exist, software
+/// > that expects it should assume that no clipping will be performed.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ClipMode {
@@ -13,12 +23,19 @@ pub enum ClipMode {
     Both,
 }
 
+/// Specifiy the appropriate range for a value.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Range<T> {
+    /// No range restriction
     None,
+    /// Values should be greater than or equal to the provided value.
     Min(T),
+    /// Values should be less than or equal to the provided value.
     Max(T),
+    /// Values should be greater than or equal to the first provided value and
+    /// less than or equal to the provided second provided value.
     MinMax(T, T),
+    /// Values should be one of the given in the list.
     Vals(Vec<T>),
 }
 
@@ -94,6 +111,7 @@ where
     }
 }
 
+/// A value with clip_mode, range and optional unit.
 #[derive(Clone, Debug)]
 pub struct Value<V, T> {
     pub value: V,
@@ -102,6 +120,7 @@ pub struct Value<V, T> {
     pub unit: Option<String>,
 }
 
+/// Build a value.
 pub struct ValueBuilder<V, T> {
     value: Value<V, T>,
 }
@@ -117,39 +136,47 @@ impl<V, T> ValueBuilder<V, T> {
         Self { value }
     }
 
+    /// Set the value's ClipMode. Defaults to `ClipMode::None`.
     pub fn with_clip_mode(mut self, clip_mode: ClipMode) -> Self {
         self.value.clip_mode = clip_mode;
         self
     }
 
+    /// Set the value's Range. Defaults to `Range::None`.
     pub fn with_range(mut self, range: Range<T>) -> Self {
         self.value.range = range;
         self
     }
 
+    /// Set the value's optional unit. Defaults to `None`.
     pub fn with_unit(mut self, unit: String) -> Self {
         self.value.unit = Some(unit);
         self
     }
 
+    /// Build the value.
     pub fn build(self) -> Value<V, T> {
         self.value
     }
 }
 
 impl<V, T> Value<V, T> {
+    /// Get the *value* from the value.
     pub fn value(&self) -> &V {
         &self.value
     }
 
+    /// Get the ClipMode.
     pub fn clip_mode(&self) -> &ClipMode {
         &self.clip_mode
     }
 
+    /// Get the Range.
     pub fn range(&self) -> &Range<T> {
         &self.range
     }
 
+    /// Get the unit.
     pub fn unit(&self) -> &Option<String> {
         &self.unit
     }

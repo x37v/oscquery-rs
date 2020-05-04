@@ -5,6 +5,7 @@ pub trait OSCTypeStr {
     fn osc_type_str(&self) -> &'static str;
 }
 
+/// read-only parameters
 #[derive(Debug)]
 pub enum ParamGet {
     Int(ValueGet<i32>),
@@ -22,6 +23,7 @@ pub enum ParamGet {
     //TODO Inf,
 }
 
+/// write-only parameters
 #[derive(Debug)]
 pub enum ParamSet {
     Int(ValueSet<i32>),
@@ -37,6 +39,7 @@ pub enum ParamSet {
     //TODO Array(Box<[Self]>),
 }
 
+/// read-write parameters
 #[derive(Debug)]
 pub enum ParamGetSet {
     Int(ValueGetSet<i32>),
