@@ -74,234 +74,132 @@ impl OSCTypeStr for ParamGet {
     }
 }
 
-//for serialize just the value
-pub(crate) struct ParamGetValueWrapper<'a>(pub(crate) &'a ParamGet);
-impl<'a> Serialize for ParamGetValueWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGet::Int(v) => serializer.serialize_i32(v.value().get()),
-            ParamGet::Float(v) => serializer.serialize_f32(v.value().get()),
-            ParamGet::String(v) => serializer.serialize_str(&v.value().get()),
-            ParamGet::Time(v) => {
-                let v = v.value().get();
-                let v = (v.0 as u64) << 32 | (v.1 as u64);
-                serializer.serialize_u64(v)
+macro_rules! impl_value_ser {
+    ($t:ident, $p:ident) => {
+        //for serialize just the value
+        impl<'a> Serialize for $t<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                match self.0 {
+                    $p::Int(v) => serializer.serialize_i32(v.value().get()),
+                    $p::Float(v) => serializer.serialize_f32(v.value().get()),
+                    $p::String(v) => serializer.serialize_str(&v.value().get()),
+                    $p::Time(v) => {
+                        let v = v.value().get();
+                        let v = (v.0 as u64) << 32 | (v.1 as u64);
+                        serializer.serialize_u64(v)
+                    }
+                    $p::Long(v) => serializer.serialize_i64(v.value().get()),
+                    $p::Double(v) => serializer.serialize_f64(v.value().get()),
+                    $p::Char(v) => serializer.serialize_char(v.value().get()),
+                    $p::Midi(..) => serializer.serialize_none(),
+                    $p::Bool(v) => serializer.serialize_bool(v.value().get()),
+                }
             }
-            ParamGet::Long(v) => serializer.serialize_i64(v.value().get()),
-            ParamGet::Double(v) => serializer.serialize_f64(v.value().get()),
-            ParamGet::Char(v) => serializer.serialize_char(v.value().get()),
-            ParamGet::Midi(..) => serializer.serialize_none(),
-            ParamGet::Bool(v) => serializer.serialize_bool(v.value().get()),
         }
-    }
+    };
 }
 
-pub(crate) struct ParamGetSetValueWrapper<'a>(pub(crate) &'a ParamGetSet);
-impl<'a> Serialize for ParamGetSetValueWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGetSet::Int(v) => serializer.serialize_i32(v.value().get()),
-            ParamGetSet::Float(v) => serializer.serialize_f32(v.value().get()),
-            ParamGetSet::String(v) => serializer.serialize_str(&v.value().get()),
-            ParamGetSet::Time(v) => {
-                let v = v.value().get();
-                let v = (v.0 as u64) << 32 | (v.1 as u64);
-                serializer.serialize_u64(v)
+macro_rules! impl_range_ser {
+    ($t:ident, $p:ident) => {
+        impl<'a> Serialize for $t<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                match self.0 {
+                    $p::Int(v) => serializer.serialize_some(v.range()),
+                    $p::Float(v) => serializer.serialize_some(v.range()),
+                    $p::String(v) => serializer.serialize_some(v.range()),
+                    $p::Time(v) => serializer.serialize_some(v.range()),
+                    $p::Long(v) => serializer.serialize_some(v.range()),
+                    $p::Double(v) => serializer.serialize_some(v.range()),
+                    $p::Char(v) => serializer.serialize_some(v.range()),
+                    $p::Midi(..) => serializer.serialize_none(),
+                    $p::Bool(v) => serializer.serialize_some(v.range()),
+                }
             }
-            ParamGetSet::Long(v) => serializer.serialize_i64(v.value().get()),
-            ParamGetSet::Double(v) => serializer.serialize_f64(v.value().get()),
-            ParamGetSet::Char(v) => serializer.serialize_char(v.value().get()),
-            ParamGetSet::Midi(..) => serializer.serialize_none(),
-            ParamGetSet::Bool(v) => serializer.serialize_bool(v.value().get()),
         }
-    }
+    };
 }
+
+macro_rules! impl_clip_mode_ser {
+    ($t:ident, $p:ident) => {
+        impl<'a> Serialize for $t<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                match self.0 {
+                    $p::Int(v) => serializer.serialize_some(v.clip_mode()),
+                    $p::Float(v) => serializer.serialize_some(v.clip_mode()),
+                    $p::String(v) => serializer.serialize_some(v.clip_mode()),
+                    $p::Time(v) => serializer.serialize_some(v.clip_mode()),
+                    $p::Long(v) => serializer.serialize_some(v.clip_mode()),
+                    $p::Double(v) => serializer.serialize_some(v.clip_mode()),
+                    $p::Char(v) => serializer.serialize_some(v.clip_mode()),
+                    $p::Midi(..) => serializer.serialize_none(),
+                    $p::Bool(v) => serializer.serialize_some(v.clip_mode()),
+                }
+            }
+        }
+    };
+}
+
+macro_rules! impl_unit_ser {
+    ($t:ident, $p:ident) => {
+        impl<'a> Serialize for $t<'a> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                match self.0 {
+                    $p::Int(v) => serializer.serialize_some(v.unit()),
+                    $p::Float(v) => serializer.serialize_some(v.unit()),
+                    $p::String(v) => serializer.serialize_some(v.unit()),
+                    $p::Time(v) => serializer.serialize_some(v.unit()),
+                    $p::Long(v) => serializer.serialize_some(v.unit()),
+                    $p::Double(v) => serializer.serialize_some(v.unit()),
+                    $p::Char(v) => serializer.serialize_some(v.unit()),
+                    $p::Midi(..) => serializer.serialize_none(),
+                    $p::Bool(v) => serializer.serialize_some(v.unit()),
+                }
+            }
+        }
+    };
+}
+
+pub(crate) struct ParamGetValueWrapper<'a>(pub(crate) &'a ParamGet);
+pub(crate) struct ParamGetSetValueWrapper<'a>(pub(crate) &'a ParamGetSet);
+
+impl_value_ser!(ParamGetValueWrapper, ParamGet);
+impl_value_ser!(ParamGetSetValueWrapper, ParamGetSet);
 
 pub(crate) struct ParamGetRangeWrapper<'a>(pub(crate) &'a ParamGet);
-impl<'a> Serialize for ParamGetRangeWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGet::Int(v) => serializer.serialize_some(v.range()),
-            ParamGet::Float(v) => serializer.serialize_some(v.range()),
-            ParamGet::String(v) => serializer.serialize_some(v.range()),
-            ParamGet::Time(v) => serializer.serialize_some(v.range()),
-            ParamGet::Long(v) => serializer.serialize_some(v.range()),
-            ParamGet::Double(v) => serializer.serialize_some(v.range()),
-            ParamGet::Char(v) => serializer.serialize_some(v.range()),
-            ParamGet::Midi(..) => serializer.serialize_none(),
-            ParamGet::Bool(v) => serializer.serialize_some(v.range()),
-        }
-    }
-}
-
 pub(crate) struct ParamSetRangeWrapper<'a>(pub(crate) &'a ParamSet);
-impl<'a> Serialize for ParamSetRangeWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamSet::Int(v) => serializer.serialize_some(v.range()),
-            ParamSet::Float(v) => serializer.serialize_some(v.range()),
-            ParamSet::String(v) => serializer.serialize_some(v.range()),
-            ParamSet::Time(v) => serializer.serialize_some(v.range()),
-            ParamSet::Long(v) => serializer.serialize_some(v.range()),
-            ParamSet::Double(v) => serializer.serialize_some(v.range()),
-            ParamSet::Char(v) => serializer.serialize_some(v.range()),
-            ParamSet::Midi(..) => serializer.serialize_none(),
-            ParamSet::Bool(v) => serializer.serialize_some(v.range()),
-        }
-    }
-}
-
 pub(crate) struct ParamGetSetRangeWrapper<'a>(pub(crate) &'a ParamGetSet);
-impl<'a> Serialize for ParamGetSetRangeWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGetSet::Int(v) => serializer.serialize_some(v.range()),
-            ParamGetSet::Float(v) => serializer.serialize_some(v.range()),
-            ParamGetSet::String(v) => serializer.serialize_some(v.range()),
-            ParamGetSet::Time(v) => serializer.serialize_some(v.range()),
-            ParamGetSet::Long(v) => serializer.serialize_some(v.range()),
-            ParamGetSet::Double(v) => serializer.serialize_some(v.range()),
-            ParamGetSet::Char(v) => serializer.serialize_some(v.range()),
-            ParamGetSet::Midi(..) => serializer.serialize_none(),
-            ParamGetSet::Bool(v) => serializer.serialize_some(v.range()),
-        }
-    }
-}
+
+impl_range_ser!(ParamGetRangeWrapper, ParamGet);
+impl_range_ser!(ParamSetRangeWrapper, ParamSet);
+impl_range_ser!(ParamGetSetRangeWrapper, ParamGetSet);
 
 pub(crate) struct ParamGetClipModeWrapper<'a>(pub(crate) &'a ParamGet);
-impl<'a> Serialize for ParamGetClipModeWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGet::Int(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGet::Float(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGet::String(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGet::Time(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGet::Long(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGet::Double(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGet::Char(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGet::Midi(..) => serializer.serialize_none(),
-            ParamGet::Bool(v) => serializer.serialize_some(v.clip_mode()),
-        }
-    }
-}
-
 pub(crate) struct ParamSetClipModeWrapper<'a>(pub(crate) &'a ParamSet);
-impl<'a> Serialize for ParamSetClipModeWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamSet::Int(v) => serializer.serialize_some(v.clip_mode()),
-            ParamSet::Float(v) => serializer.serialize_some(v.clip_mode()),
-            ParamSet::String(v) => serializer.serialize_some(v.clip_mode()),
-            ParamSet::Time(v) => serializer.serialize_some(v.clip_mode()),
-            ParamSet::Long(v) => serializer.serialize_some(v.clip_mode()),
-            ParamSet::Double(v) => serializer.serialize_some(v.clip_mode()),
-            ParamSet::Char(v) => serializer.serialize_some(v.clip_mode()),
-            ParamSet::Midi(..) => serializer.serialize_none(),
-            ParamSet::Bool(v) => serializer.serialize_some(v.clip_mode()),
-        }
-    }
-}
-
 pub(crate) struct ParamGetSetClipModeWrapper<'a>(pub(crate) &'a ParamGetSet);
-impl<'a> Serialize for ParamGetSetClipModeWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGetSet::Int(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGetSet::Float(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGetSet::String(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGetSet::Time(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGetSet::Long(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGetSet::Double(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGetSet::Char(v) => serializer.serialize_some(v.clip_mode()),
-            ParamGetSet::Midi(..) => serializer.serialize_none(),
-            ParamGetSet::Bool(v) => serializer.serialize_some(v.clip_mode()),
-        }
-    }
-}
+
+impl_clip_mode_ser!(ParamGetClipModeWrapper, ParamGet);
+impl_clip_mode_ser!(ParamSetClipModeWrapper, ParamSet);
+impl_clip_mode_ser!(ParamGetSetClipModeWrapper, ParamGetSet);
 
 pub(crate) struct ParamGetUnitWrapper<'a>(pub(crate) &'a ParamGet);
-impl<'a> Serialize for ParamGetUnitWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGet::Int(v) => serializer.serialize_some(v.unit()),
-            ParamGet::Float(v) => serializer.serialize_some(v.unit()),
-            ParamGet::String(v) => serializer.serialize_some(v.unit()),
-            ParamGet::Time(v) => serializer.serialize_some(v.unit()),
-            ParamGet::Long(v) => serializer.serialize_some(v.unit()),
-            ParamGet::Double(v) => serializer.serialize_some(v.unit()),
-            ParamGet::Char(v) => serializer.serialize_some(v.unit()),
-            ParamGet::Midi(..) => serializer.serialize_none(),
-            ParamGet::Bool(v) => serializer.serialize_some(v.unit()),
-        }
-    }
-}
-
 pub(crate) struct ParamSetUnitWrapper<'a>(pub(crate) &'a ParamSet);
-impl<'a> Serialize for ParamSetUnitWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamSet::Int(v) => serializer.serialize_some(v.unit()),
-            ParamSet::Float(v) => serializer.serialize_some(v.unit()),
-            ParamSet::String(v) => serializer.serialize_some(v.unit()),
-            ParamSet::Time(v) => serializer.serialize_some(v.unit()),
-            ParamSet::Long(v) => serializer.serialize_some(v.unit()),
-            ParamSet::Double(v) => serializer.serialize_some(v.unit()),
-            ParamSet::Char(v) => serializer.serialize_some(v.unit()),
-            ParamSet::Midi(..) => serializer.serialize_none(),
-            ParamSet::Bool(v) => serializer.serialize_some(v.unit()),
-        }
-    }
-}
-
 pub(crate) struct ParamGetSetUnitWrapper<'a>(pub(crate) &'a ParamGetSet);
-impl<'a> Serialize for ParamGetSetUnitWrapper<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self.0 {
-            ParamGetSet::Int(v) => serializer.serialize_some(v.unit()),
-            ParamGetSet::Float(v) => serializer.serialize_some(v.unit()),
-            ParamGetSet::String(v) => serializer.serialize_some(v.unit()),
-            ParamGetSet::Time(v) => serializer.serialize_some(v.unit()),
-            ParamGetSet::Long(v) => serializer.serialize_some(v.unit()),
-            ParamGetSet::Double(v) => serializer.serialize_some(v.unit()),
-            ParamGetSet::Char(v) => serializer.serialize_some(v.unit()),
-            ParamGetSet::Midi(..) => serializer.serialize_none(),
-            ParamGetSet::Bool(v) => serializer.serialize_some(v.unit()),
-        }
-    }
-}
+
+impl_unit_ser!(ParamGetUnitWrapper, ParamGet);
+impl_unit_ser!(ParamSetUnitWrapper, ParamSet);
+impl_unit_ser!(ParamGetSetUnitWrapper, ParamGetSet);
 
 impl OSCTypeStr for ParamSet {
     fn osc_type_str(&self) -> &'static str {
