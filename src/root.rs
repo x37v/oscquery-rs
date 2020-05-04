@@ -144,15 +144,10 @@ impl RootInner {
     }
 
     fn handle_osc_msg(&self, msg: &OscMessage) {
-        println!("addr {} args {:?}", msg.addr, msg.args);
         if let Some(index) = self.index_map.get(&msg.addr) {
             if let Some(node) = self.graph.node_weight(index.clone()) {
                 node.node.osc_update(&msg.args);
-            } else {
-                println!("no node");
             }
-        } else {
-            println!("no index");
         }
     }
 
