@@ -1,8 +1,14 @@
 use crate::param::OSCTypeStr;
 use crate::param::*;
 
+use rosc::OscType;
+
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
+
+pub trait OscUpdate {
+    fn osc_update(&self, args: &Vec<OscType>);
+}
 
 pub fn address_valid(address: String) -> Result<String, &'static str> {
     //TODO test others
@@ -319,6 +325,83 @@ impl<'a> Serialize for NodeClipModeWrapper<'a> {
         }
     }
 }
+
+impl OscUpdate for Node {
+    fn osc_update(&self, args: &Vec<OscType>) {
+        match self {
+            Self::Container(..) | Self::Get(..) => (),
+            Self::Set(n) => n.osc_update(args),
+            Self::GetSet(n) => n.osc_update(args),
+        };
+    }
+}
+
+macro_rules! impl_osc_update {
+    ($t:ty, $p:ident) => {
+        impl OscUpdate for $t {
+            fn osc_update(&self, args: &Vec<OscType>) {
+                for (p, a) in self.params.iter().zip(args) {
+                    match a {
+                        OscType::Int(v) => {
+                            if let $p::Int(s) = p {
+                                s.value().set(*v);
+                            }
+                        }
+                        OscType::Float(v) => {
+                            if let $p::Float(s) = p {
+                                s.value().set(*v);
+                            }
+                        }
+                        OscType::String(v) => {
+                            if let $p::String(s) = p {
+                                s.value().set(v.to_owned());
+                            }
+                        }
+                        OscType::Time(v0, v1) => {
+                            if let $p::Time(s) = p {
+                                s.value().set((*v0, *v1));
+                            }
+                        }
+                        OscType::Long(v) => {
+                            if let $p::Long(s) = p {
+                                s.value().set(*v);
+                            }
+                        }
+                        OscType::Double(v) => {
+                            if let $p::Double(s) = p {
+                                s.value().set(*v);
+                            }
+                        }
+                        OscType::Char(v) => {
+                            if let $p::Char(s) = p {
+                                s.value().set(*v);
+                            }
+                        }
+                        OscType::Midi(v) => {
+                            if let $p::Midi(s) = p {
+                                s.value().set((v.port, v.status, v.data1, v.data2));
+                            }
+                        }
+                        OscType::Bool(v) => {
+                            if let $p::Bool(s) = p {
+                                s.value().set(*v);
+                            }
+                        }
+                        //TODO
+                        OscType::Blob(..) => (),
+                        OscType::Color(..) => (),
+                        OscType::Array(..) => (),
+                        OscType::Nil => (),
+                        OscType::Inf => (),
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_osc_update!(Set, ParamSet);
+impl_osc_update!(GetSet, ParamGetSet);
 
 impl From<Container> for Node {
     fn from(n: Container) -> Self {
