@@ -1,13 +1,15 @@
 use crate::node::*;
+use crate::service::osc::OscService;
 use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::HashMap;
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 type Graph = StableGraph<NodeWrapper, ()>;
 
-pub(crate) struct RootInner {
+pub struct RootInner {
     name: Option<String>,
     graph: Graph,
     root: NodeIndex,
@@ -44,9 +46,12 @@ pub enum NodeHandle {
 
 impl Root {
     pub fn new(name: Option<String>) -> Self {
-        Self {
-            inner: Arc::new(RwLock::new(RootInner::new(name))),
-        }
+        let inner = Arc::new(RwLock::new(RootInner::new(name)));
+        Self { inner }
+    }
+
+    pub fn spawn_osc<A: ToSocketAddrs>(&self, osc_addrs: A) -> Result<OscService, std::io::Error> {
+        Ok(OscService::new(self.inner.clone(), osc_addrs)?)
     }
 
     pub fn name(&self) -> Option<String> {
