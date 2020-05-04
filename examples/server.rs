@@ -14,10 +14,10 @@ fn main() {
     assert!(res.is_ok());
 
     let a = Arc::new(Atomic::new(2084i32));
-    let m = oscquery::node::Get::new(
+    let m = oscquery::node::GetSet::new(
         "bar".into(),
         None,
-        vec![ParamGet::Int(
+        vec![ParamGetSet::Int(
             ValueBuilder::new(a.clone() as _)
                 .with_unit("speed.mph".into())
                 .build(),
