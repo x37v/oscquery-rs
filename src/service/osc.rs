@@ -31,7 +31,7 @@ impl OscService {
                         if size > 0 {
                             let packet = rosc::decoder::decode(&buf[..size]).unwrap();
                             if let Ok(root) = root.read() {
-                                handle_packet(root.deref(), packet);
+                                root.handle_osc_packet(&packet);
                             }
                         }
                     }
@@ -59,18 +59,6 @@ impl Drop for OscService {
         self.done.store(true, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
-        }
-    }
-}
-
-fn handle_packet(_root: &RootInner, packet: OscPacket) {
-    match packet {
-        OscPacket::Message(msg) => {
-            println!("OSC address: {}", msg.addr);
-            println!("OSC arguments: {:?}", msg.args);
-        }
-        OscPacket::Bundle(bundle) => {
-            println!("OSC Bundle: {:?}", bundle);
         }
     }
 }
