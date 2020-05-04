@@ -5,6 +5,7 @@ use futures::future;
 use hyper::service::Service;
 use hyper::{header, Body, Method, Request, Response, Server};
 use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -169,9 +170,10 @@ impl<T> Service<T> for MakeSvc {
 }
 
 impl ServiceHandle {
-    pub fn new(root: Arc<Root>, port: u16) -> Self {
+    pub fn new(root: Arc<Root>, addr: &SocketAddr) -> Self {
         let root = root.clone();
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        let addr = addr.clone();
         std::thread::spawn(move || {
             let mut rt = tokio::runtime::Builder::new()
                 .basic_scheduler()
@@ -180,8 +182,7 @@ impl ServiceHandle {
                 .build()
                 .expect("could not create runtime");
             rt.block_on(async {
-                let server = Server::bind(&([127, 0, 0, 1], port).into()).serve(MakeSvc { root });
-
+                let server = Server::bind(&addr).serve(MakeSvc { root });
                 let graceful = server.with_graceful_shutdown(async {
                     rx.await.ok();
                     println!("quitting");
