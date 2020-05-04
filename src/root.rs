@@ -10,7 +10,7 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 type Graph = StableGraph<NodeWrapper, ()>;
 
-pub struct RootInner {
+pub(crate) struct RootInner {
     name: Option<String>,
     graph: Graph,
     root: NodeIndex,
@@ -18,6 +18,7 @@ pub struct RootInner {
     index_map: HashMap<String, NodeIndex>,
 }
 
+/// The root of an OSCQuery tree.
 pub struct Root {
     inner: Arc<RwLock<RootInner>>,
 }
@@ -27,7 +28,7 @@ struct NodeWrapper {
     node: Node,
 }
 
-pub struct NodeSerializeWrapper<'a> {
+pub(crate) struct NodeSerializeWrapper<'a> {
     node: &'a NodeWrapper,
     graph: &'a Graph,
     neighbors: WalkNeighbors<u32>,
@@ -97,7 +98,7 @@ impl Root {
     //TODO remove_node
     //ADD method with /long/path/to/leaf so we don't have to add each individual container
 
-    pub fn serialize_node<F, S>(
+    pub(crate) fn serialize_node<F, S>(
         &self,
         path: &str,
         param: Option<NodeQueryParam>,
@@ -167,7 +168,7 @@ impl RootInner {
         self.name.clone()
     }
 
-    pub fn serialize_node<F, S>(
+    pub(crate) fn serialize_node<F, S>(
         &self,
         path: &str,
         param: Option<NodeQueryParam>,

@@ -8,19 +8,27 @@ use std::sync::Arc;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread::JoinHandle;
 
+/// Manage a thread that reads and writes OSC to/from a socket and updates a OSCQuery tree.
+///
+/// Drop to stop the service.
+/// *NOTE* this will block until the service thread completes.
+
 pub struct OscService {
     handle: Option<JoinHandle<()>>,
     done: Arc<AtomicBool>,
+    local_addr: SocketAddr,
 }
 
 impl OscService {
-    pub fn new<A: ToSocketAddrs>(
+    /// Create and start an OscService
+    pub(crate) fn new<A: ToSocketAddrs>(
         root: Arc<RwLock<RootInner>>,
         addr: A,
     ) -> Result<Self, std::io::Error> {
         let d = Arc::new(AtomicBool::new(false));
         let done = d.clone();
         let sock = UdpSocket::bind(addr)?;
+        let local_addr = sock.local_addr()?;
         //timeout reads so we can check our done status
         sock.set_read_timeout(Some(std::time::Duration::from_millis(1)))?;
         let handle = std::thread::spawn(move || {
@@ -50,7 +58,13 @@ impl OscService {
         Ok(Self {
             handle: Some(handle),
             done: d,
+            local_addr,
         })
+    }
+
+    /// Returns the `SocketAddr` that the service bound to.
+    pub fn local_addr(&self) -> &SocketAddr {
+        &self.local_addr
     }
 }
 
