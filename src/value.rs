@@ -2,6 +2,7 @@ use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use std::fmt;
 use std::sync::Arc;
 
+/// Implementations of Get and Set for all `atomic::Atomic<T: Copy + Send>` types.
 pub mod atomic;
 
 /// Identify how values outside of the associated `Range` should be handled (clipped).
