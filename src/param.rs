@@ -52,28 +52,6 @@ pub enum ParamGetSet {
     //TODO Array(Box<[Self]>),
 }
 
-impl OSCTypeStr for ParamGet {
-    fn osc_type_str(&self) -> &'static str {
-        match self {
-            Self::Int(..) => &"i",
-            Self::Float(..) => &"f",
-            Self::String(..) => &"s",
-            Self::Time(..) => &"t",
-            Self::Long(..) => &"h",
-            Self::Double(..) => &"d",
-            Self::Char(..) => &"c",
-            Self::Midi(..) => &"m",
-            Self::Bool(v) => {
-                if v.value().get() {
-                    &"T"
-                } else {
-                    &"F"
-                }
-            }
-        }
-    }
-}
-
 macro_rules! impl_value_ser {
     ($t:ident, $p:ident) => {
         //for serialize just the value
@@ -200,6 +178,28 @@ pub(crate) struct ParamGetSetUnitWrapper<'a>(pub(crate) &'a ParamGetSet);
 impl_unit_ser!(ParamGetUnitWrapper, ParamGet);
 impl_unit_ser!(ParamSetUnitWrapper, ParamSet);
 impl_unit_ser!(ParamGetSetUnitWrapper, ParamGetSet);
+
+impl OSCTypeStr for ParamGet {
+    fn osc_type_str(&self) -> &'static str {
+        match self {
+            Self::Int(..) => &"i",
+            Self::Float(..) => &"f",
+            Self::String(..) => &"s",
+            Self::Time(..) => &"t",
+            Self::Long(..) => &"h",
+            Self::Double(..) => &"d",
+            Self::Char(..) => &"c",
+            Self::Midi(..) => &"m",
+            Self::Bool(v) => {
+                if v.value().get() {
+                    &"T"
+                } else {
+                    &"F"
+                }
+            }
+        }
+    }
+}
 
 impl OSCTypeStr for ParamSet {
     fn osc_type_str(&self) -> &'static str {
