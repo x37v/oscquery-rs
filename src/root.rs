@@ -23,7 +23,7 @@ pub struct Root {
     inner: Arc<RwLock<RootInner>>,
 }
 
-struct NodeWrapper {
+pub(crate) struct NodeWrapper {
     full_path: String,
     node: Node,
 }
@@ -144,12 +144,34 @@ impl RootInner {
         }
     }
 
+    fn with_node_at_handle<F>(&self, handle: &NodeHandle, f: F)
+    where
+        F: Fn(Option<&NodeWrapper>),
+    {
+        let index = match handle {
+            NodeHandle::Container(i) => i,
+            NodeHandle::Method(i) => i,
+        };
+        f(self.graph.node_weight(*index));
+    }
+
+    fn with_node_at_path<F>(&self, path: &str, f: F)
+    where
+        F: Fn(Option<&NodeWrapper>),
+    {
+        f(if let Some(index) = self.index_map.get(path) {
+            self.graph.node_weight(*index)
+        } else {
+            None
+        });
+    }
+
     fn handle_osc_msg(&self, msg: &OscMessage) {
-        if let Some(index) = self.index_map.get(&msg.addr) {
-            if let Some(node) = self.graph.node_weight(index.clone()) {
+        self.with_node_at_path(&msg.addr, |node| {
+            if let Some(node) = node {
                 node.node.osc_update(&msg.args);
             }
-        }
+        });
     }
 
     pub fn handle_osc_packet(&self, packet: &OscPacket) {

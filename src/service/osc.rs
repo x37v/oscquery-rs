@@ -1,4 +1,4 @@
-use crate::root::RootInner;
+use crate::root::{NodeHandle, RootInner};
 use rosc::OscPacket;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
@@ -60,6 +60,14 @@ impl OscService {
             done: d,
             local_addr,
         })
+    }
+
+    pub fn trigger(&self, handle: NodeHandle) {
+        //XXX
+    }
+
+    pub fn trigger_path(&self, path: &str) {
+        //XXX
     }
 
     /// Returns the `SocketAddr` that the service bound to.
