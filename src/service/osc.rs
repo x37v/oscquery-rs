@@ -1,14 +1,12 @@
-use crate::node::{Node, OscRender};
+use crate::node::OscRender;
 use crate::root::{NodeHandle, NodeWrapper, RootInner};
 
 use rosc::{OscMessage, OscPacket};
 use std::io::ErrorKind;
-use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
-use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
+use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
+use std::sync::mpsc::{channel, Sender, TryRecvError};
 use std::sync::Arc;
-use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::RwLock;
 use std::thread::JoinHandle;
 
 /// Manage a thread that reads and writes OSC to/from a socket and updates a OSCQuery tree.
@@ -21,6 +19,7 @@ pub struct OscService {
     handle: Option<JoinHandle<()>>,
     cmd_sender: Sender<Command>,
     local_addr: SocketAddr,
+    send_addrs: Vec<SocketAddr>,
 }
 
 enum Command {
@@ -34,7 +33,6 @@ impl OscService {
         root: Arc<RwLock<RootInner>>,
         addr: A,
     ) -> Result<Self, std::io::Error> {
-        let d = Arc::new(AtomicBool::new(false));
         let sock = UdpSocket::bind(addr)?;
         let local_addr = sock.local_addr()?;
         let (cmd_sender, cmd_recv) = channel();
@@ -63,6 +61,7 @@ impl OscService {
                 }
                 match sock.recv_from(&mut buf) {
                     Ok((size, _addr)) => {
+                        //TODO do something with addr so we can potentially start sending messages to it?
                         if size > 0 {
                             let packet = rosc::decoder::decode(&buf[..size]).unwrap();
                             if let Ok(root) = root.read() {
@@ -87,14 +86,18 @@ impl OscService {
             handle: Some(handle),
             cmd_sender,
             local_addr,
+            send_addrs: Vec::new(),
         })
     }
 
     fn send(&self, buf: &Vec<u8>) {
-        //XXX iterate listeners
-        let addr = SocketAddr::from_str("127.0.0.1:3010").unwrap();
-        if let Err(_) = self.cmd_sender.send(Command::Send(buf.clone(), addr)) {
-            println!("error sending to {}", addr);
+        for addr in &self.send_addrs {
+            if let Err(_) = self
+                .cmd_sender
+                .send(Command::Send(buf.clone(), addr.clone()))
+            {
+                println!("error sending to {}", addr);
+            }
         }
     }
 
@@ -131,6 +134,10 @@ impl OscService {
                 }
             });
         }
+    }
+
+    pub fn add_send_addr(&mut self, addr: SocketAddr) {
+        self.send_addrs.push(addr);
     }
 
     /// Returns the `SocketAddr` that the service bound to.
