@@ -60,12 +60,11 @@ impl OscService {
                     Err(TryRecvError::Empty) => (),
                 }
                 match sock.recv_from(&mut buf) {
-                    Ok((size, _addr)) => {
-                        //TODO do something with addr so we can potentially start sending messages to it?
+                    Ok((size, addr)) => {
                         if size > 0 {
                             let packet = rosc::decoder::decode(&buf[..size]).unwrap();
                             if let Ok(root) = root.read() {
-                                root.handle_osc_packet(&packet);
+                                root.handle_osc_packet(&packet, addr);
                             }
                         }
                     }

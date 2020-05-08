@@ -1,9 +1,10 @@
 use crate::node::*;
 use crate::service::osc::OscService;
 use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
-use rosc::{OscBundle, OscMessage, OscPacket};
+use rosc::{OscMessage, OscPacket};
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -166,21 +167,21 @@ impl RootInner {
         })
     }
 
-    fn handle_osc_msg(&self, msg: &OscMessage) {
+    fn handle_osc_msg(&self, msg: &OscMessage, addr: SocketAddr) {
         self.with_node_at_path(&msg.addr, |node| {
             if let Some(node) = node {
-                node.node.osc_update(&msg.args);
+                node.node.osc_update(&msg.args, addr);
             }
         });
     }
 
-    pub fn handle_osc_packet(&self, packet: &OscPacket) {
+    pub fn handle_osc_packet(&self, packet: &OscPacket, addr: SocketAddr) {
         match packet {
-            OscPacket::Message(msg) => self.handle_osc_msg(&msg),
+            OscPacket::Message(msg) => self.handle_osc_msg(&msg, addr),
             OscPacket::Bundle(bundle) => {
                 for p in bundle.content.iter() {
                     //TODO something with time stamp?
-                    self.handle_osc_packet(p);
+                    self.handle_osc_packet(p, addr.clone());
                 }
             }
         };

@@ -2,12 +2,13 @@ use crate::param::OSCTypeStr;
 use crate::param::*;
 
 use rosc::{OscMidiMessage, OscType};
+use std::net::SocketAddr;
 
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
 pub trait OscUpdate {
-    fn osc_update(&self, args: &Vec<OscType>);
+    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr);
 }
 
 pub trait OscRender {
@@ -331,11 +332,11 @@ impl<'a> Serialize for NodeClipModeWrapper<'a> {
 }
 
 impl OscUpdate for Node {
-    fn osc_update(&self, args: &Vec<OscType>) {
+    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr) {
         match self {
             Self::Container(..) | Self::Get(..) => (),
-            Self::Set(n) => n.osc_update(args),
-            Self::GetSet(n) => n.osc_update(args),
+            Self::Set(n) => n.osc_update(args, addr),
+            Self::GetSet(n) => n.osc_update(args, addr),
         };
     }
 }
@@ -353,7 +354,7 @@ impl OscRender for Node {
 macro_rules! impl_osc_update {
     ($t:ty, $p:ident) => {
         impl OscUpdate for $t {
-            fn osc_update(&self, args: &Vec<OscType>) {
+            fn osc_update(&self, args: &Vec<OscType>, _addr: SocketAddr) {
                 for (p, a) in self.params.iter().zip(args) {
                     match a {
                         OscType::Int(v) => {
