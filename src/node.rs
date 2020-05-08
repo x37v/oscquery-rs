@@ -345,7 +345,7 @@ impl OscRender for Node {
         match self {
             Self::Container(..) | Self::Set(..) => (),
             Self::Get(n) => n.osc_render(args),
-            Self::GetSet(n) => n.osc_update(args),
+            Self::GetSet(n) => n.osc_render(args),
         };
     }
 }
