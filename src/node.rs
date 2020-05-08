@@ -1,13 +1,17 @@
 use crate::param::OSCTypeStr;
 use crate::param::*;
 
-use rosc::OscType;
+use rosc::{OscMidiMessage, OscType};
 
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
 pub trait OscUpdate {
     fn osc_update(&self, args: &Vec<OscType>);
+}
+
+pub trait OscRender {
+    fn osc_render(&self, args: &mut Vec<OscType>);
 }
 
 pub fn address_valid(address: String) -> Result<String, &'static str> {
@@ -336,6 +340,16 @@ impl OscUpdate for Node {
     }
 }
 
+impl OscRender for Node {
+    fn osc_render(&self, args: &mut Vec<OscType>) {
+        match self {
+            Self::Container(..) | Self::Set(..) => (),
+            Self::Get(n) => n.osc_render(args),
+            Self::GetSet(n) => n.osc_update(args),
+        };
+    }
+}
+
 macro_rules! impl_osc_update {
     ($t:ty, $p:ident) => {
         impl OscUpdate for $t {
@@ -400,8 +414,44 @@ macro_rules! impl_osc_update {
     };
 }
 
+macro_rules! impl_osc_render {
+    ($t:ty, $p:ident) => {
+        impl OscRender for $t {
+            fn osc_render(&self, args: &mut Vec<OscType>) {
+                for p in self.params.iter() {
+                    match p {
+                        $p::Int(v) => args.push(OscType::Int(v.value().get())),
+                        $p::Float(v) => args.push(OscType::Float(v.value().get())),
+                        $p::String(v) => args.push(OscType::String(v.value().get().clone())),
+                        $p::Time(v) => {
+                            let v = v.value().get();
+                            args.push(OscType::Time(v.0, v.1));
+                        }
+                        $p::Long(v) => args.push(OscType::Long(v.value().get())),
+                        $p::Double(v) => args.push(OscType::Double(v.value().get())),
+                        $p::Char(v) => args.push(OscType::Char(v.value().get())),
+                        $p::Midi(v) => {
+                            let v = v.value().get();
+                            args.push(OscType::Midi(OscMidiMessage {
+                                port: v.0,
+                                status: v.1,
+                                data1: v.2,
+                                data2: v.3,
+                            }))
+                        }
+                        $p::Bool(v) => args.push(OscType::Bool(v.value().get())),
+                    }
+                }
+            }
+        }
+    };
+}
+
 impl_osc_update!(Set, ParamSet);
 impl_osc_update!(GetSet, ParamGetSet);
+
+impl_osc_render!(Get, ParamGet);
+impl_osc_render!(GetSet, ParamGetSet);
 
 impl From<Container> for Node {
     fn from(n: Container) -> Self {

@@ -24,8 +24,8 @@ pub struct Root {
 }
 
 pub(crate) struct NodeWrapper {
-    full_path: String,
-    node: Node,
+    pub(crate) full_path: String,
+    pub(crate) node: Node,
 }
 
 pub(crate) struct NodeSerializeWrapper<'a> {
@@ -144,26 +144,26 @@ impl RootInner {
         }
     }
 
-    fn with_node_at_handle<F>(&self, handle: &NodeHandle, f: F)
+    pub fn with_node_at_handle<F, R>(&self, handle: &NodeHandle, f: F) -> R
     where
-        F: Fn(Option<&NodeWrapper>),
+        F: Fn(Option<&NodeWrapper>) -> R,
     {
         let index = match handle {
             NodeHandle::Container(i) => i,
             NodeHandle::Method(i) => i,
         };
-        f(self.graph.node_weight(*index));
+        f(self.graph.node_weight(*index))
     }
 
-    fn with_node_at_path<F>(&self, path: &str, f: F)
+    pub fn with_node_at_path<F, R>(&self, path: &str, f: F) -> R
     where
-        F: Fn(Option<&NodeWrapper>),
+        F: Fn(Option<&NodeWrapper>) -> R,
     {
         f(if let Some(index) = self.index_map.get(path) {
             self.graph.node_weight(*index)
         } else {
             None
-        });
+        })
     }
 
     fn handle_osc_msg(&self, msg: &OscMessage) {
