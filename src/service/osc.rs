@@ -1,9 +1,12 @@
-use crate::root::{NodeHandle, RootInner};
-use rosc::OscPacket;
+use crate::node::{Node, OscRender};
+use crate::root::{NodeHandle, NodeWrapper, RootInner};
+
+use rosc::{OscMessage, OscPacket};
 use std::io::ErrorKind;
-use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
-use std::ops::Deref;
+use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::Arc;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread::JoinHandle;
@@ -14,9 +17,15 @@ use std::thread::JoinHandle;
 /// *NOTE* this will block until the service thread completes.
 
 pub struct OscService {
+    root: Arc<RwLock<RootInner>>,
     handle: Option<JoinHandle<()>>,
-    done: Arc<AtomicBool>,
+    cmd_sender: Sender<Command>,
     local_addr: SocketAddr,
+}
+
+enum Command {
+    Send(Vec<u8>, SocketAddr),
+    End,
 }
 
 impl OscService {
@@ -26,14 +35,32 @@ impl OscService {
         addr: A,
     ) -> Result<Self, std::io::Error> {
         let d = Arc::new(AtomicBool::new(false));
-        let done = d.clone();
         let sock = UdpSocket::bind(addr)?;
         let local_addr = sock.local_addr()?;
-        //timeout reads so we can check our done status
+        let (cmd_sender, cmd_recv) = channel();
+
+        //timeout reads so we can check our cmd queue
         sock.set_read_timeout(Some(std::time::Duration::from_millis(1)))?;
+
+        let r = root.clone();
         let handle = std::thread::spawn(move || {
             let mut buf = [0u8; rosc::decoder::MTU];
-            while !done.load(Ordering::Relaxed) {
+            loop {
+                match cmd_recv.try_recv() {
+                    Ok(cmd) => match cmd {
+                        Command::End => {
+                            return;
+                        }
+                        Command::Send(buf, to_addr) => {
+                            //XXX indicate error?
+                            let _ = sock.send_to(&buf, to_addr);
+                        }
+                    },
+                    Err(TryRecvError::Disconnected) => {
+                        return;
+                    }
+                    Err(TryRecvError::Empty) => (),
+                }
                 match sock.recv_from(&mut buf) {
                     Ok((size, _addr)) => {
                         if size > 0 {
@@ -56,18 +83,54 @@ impl OscService {
             }
         });
         Ok(Self {
+            root: r,
             handle: Some(handle),
-            done: d,
+            cmd_sender,
             local_addr,
         })
     }
 
+    fn send(&self, buf: &Vec<u8>) {
+        //XXX iterate listeners
+        let addr = SocketAddr::from_str("127.0.0.1:3010").unwrap();
+        if let Err(_) = self.cmd_sender.send(Command::Send(buf.clone(), addr)) {
+            println!("error sending to {}", addr);
+        }
+    }
+
+    fn render_and_send(&self, node: &NodeWrapper) {
+        let mut args = Vec::new();
+        node.node.osc_render(&mut args);
+        let buf = rosc::encoder::encode(&OscPacket::Message(OscMessage {
+            addr: node.full_path.clone(),
+            args,
+        }));
+        match buf {
+            Ok(buf) => self.send(&buf),
+            Err(..) => {
+                println!("error encoding");
+            }
+        }
+    }
+
     pub fn trigger(&self, handle: NodeHandle) {
-        //XXX
+        if let Ok(root) = self.root.read() {
+            root.with_node_at_handle(&handle, |node| {
+                if let Some(node) = node {
+                    self.render_and_send(node);
+                }
+            });
+        }
     }
 
     pub fn trigger_path(&self, path: &str) {
-        //XXX
+        if let Ok(root) = self.root.read() {
+            root.with_node_at_path(path, |node| {
+                if let Some(node) = node {
+                    self.render_and_send(node);
+                }
+            });
+        }
     }
 
     /// Returns the `SocketAddr` that the service bound to.
@@ -78,9 +141,10 @@ impl OscService {
 
 impl Drop for OscService {
     fn drop(&mut self) {
-        self.done.store(true, Ordering::Relaxed);
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
+        if self.cmd_sender.send(Command::End).is_ok() {
+            if let Some(handle) = self.handle.take() {
+                let _ = handle.join();
+            }
         }
     }
 }
