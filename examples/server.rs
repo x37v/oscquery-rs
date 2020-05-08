@@ -27,11 +27,13 @@ fn main() {
     let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
     assert!(res.is_ok());
 
-    let _osc = root.spawn_osc("127.0.0.1:3001");
+    let osc = root.spawn_osc("127.0.0.1:3001").unwrap();
     let _handle = ServiceHandle::new(
         root,
         &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3000),
     );
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    osc.trigger_path("/foo/bar");
     loop {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
