@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread::JoinHandle;
 
-/// Manage a thread that reads and writes OSC to/from a socket and updates a OSCQuery tree.
+/// Manage a thread that reads and writes OSC to/from a socket and updates an OSCQuery tree.
 ///
 /// Drop to stop the service.
 /// *NOTE* this will block until the service thread completes.
@@ -116,6 +116,7 @@ impl OscService {
         }
     }
 
+    /// Trigger a OSC send for the node at the given handle, if it is valid.
     pub fn trigger(&self, handle: NodeHandle) {
         if let Ok(root) = self.root.read() {
             root.with_node_at_handle(&handle, |node| {
@@ -126,6 +127,7 @@ impl OscService {
         }
     }
 
+    /// Trigger an OSC send for the node at the given path, if it is valid.
     pub fn trigger_path(&self, path: &str) {
         if let Ok(root) = self.root.read() {
             root.with_node_at_path(path, |node| {
@@ -136,6 +138,8 @@ impl OscService {
         }
     }
 
+    /// Add an address to send all outgoing OSC messages
+    /// *NOTE* uses a HashSet internally so adding the same address more than once is okay.
     pub fn add_send_addr(&mut self, addr: SocketAddr) {
         self.send_addrs.insert(addr);
     }
