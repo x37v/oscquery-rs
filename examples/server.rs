@@ -23,7 +23,10 @@ fn main() {
                 .with_unit("speed.mph".into())
                 .build(),
         )],
-        None,
+        Some(Box::new(move |params, address, time| {
+            println!("handler got {:?} {:?} {:?}", params, address, time);
+            true
+        })),
     );
 
     let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
