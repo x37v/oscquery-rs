@@ -35,6 +35,8 @@ fn main() {
     let mut osc = root.spawn_osc("127.0.0.1:3001").unwrap();
     osc.add_send_addr(SocketAddr::from_str("127.0.0.1:3010").unwrap());
 
+    let mut _ws = root.spawn_ws("127.0.0.1:3002").unwrap();
+
     let _handle = ServiceHandle::new(
         root,
         &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3000),

@@ -1,5 +1,6 @@
 use crate::node::*;
 use crate::service::osc::OscService;
+use crate::service::websocket::WSService;
 use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
 use rosc::{OscMessage, OscPacket};
 use serde::{ser::SerializeMap, Serialize, Serializer};
@@ -55,6 +56,10 @@ impl Root {
 
     pub fn spawn_osc<A: ToSocketAddrs>(&self, osc_addrs: A) -> Result<OscService, std::io::Error> {
         Ok(OscService::new(self.inner.clone(), osc_addrs)?)
+    }
+
+    pub fn spawn_ws<A: ToSocketAddrs>(&self, ws_addrs: A) -> Result<WSService, std::io::Error> {
+        Ok(WSService::new(self.inner.clone(), ws_addrs)?)
     }
 
     pub fn name(&self) -> Option<String> {
@@ -167,7 +172,7 @@ impl RootInner {
         })
     }
 
-    fn handle_osc_msg(&self, msg: &OscMessage, addr: SocketAddr, time: Option<(u32, u32)>) {
+    fn handle_osc_msg(&self, msg: &OscMessage, addr: Option<SocketAddr>, time: Option<(u32, u32)>) {
         self.with_node_at_path(&msg.addr, |node| {
             if let Some(node) = node {
                 node.node.osc_update(&msg.args, addr, time);
@@ -178,7 +183,7 @@ impl RootInner {
     pub fn handle_osc_packet(
         &self,
         packet: &OscPacket,
-        addr: SocketAddr,
+        addr: Option<SocketAddr>,
         time: Option<(u32, u32)>,
     ) {
         match packet {

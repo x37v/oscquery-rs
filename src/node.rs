@@ -9,10 +9,10 @@ use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
 pub type UpdateHandler =
-    Box<dyn Fn(&Vec<OscType>, SocketAddr, Option<(u32, u32)>) -> bool + Send + Sync>;
+    Box<dyn Fn(&Vec<OscType>, Option<SocketAddr>, Option<(u32, u32)>) -> bool + Send + Sync>;
 
 pub trait OscUpdate {
-    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr, time: Option<(u32, u32)>);
+    fn osc_update(&self, args: &Vec<OscType>, addr: Option<SocketAddr>, time: Option<(u32, u32)>);
 }
 
 pub trait OscRender {
@@ -366,7 +366,7 @@ impl<'a> Serialize for NodeClipModeWrapper<'a> {
 }
 
 impl OscUpdate for Node {
-    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr, time: Option<(u32, u32)>) {
+    fn osc_update(&self, args: &Vec<OscType>, addr: Option<SocketAddr>, time: Option<(u32, u32)>) {
         match self {
             Self::Container(..) | Self::Get(..) => (),
             Self::Set(n) => n.osc_update(args, addr, time),
@@ -388,7 +388,12 @@ impl OscRender for Node {
 macro_rules! impl_osc_update {
     ($t:ty, $p:ident) => {
         impl OscUpdate for $t {
-            fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr, time: Option<(u32, u32)>) {
+            fn osc_update(
+                &self,
+                args: &Vec<OscType>,
+                addr: Option<SocketAddr>,
+                time: Option<(u32, u32)>,
+            ) {
                 //if we have a handler, exec and see if we should continue
                 if let Some(handler) = &self.handler {
                     if !handler(args, addr, time) {

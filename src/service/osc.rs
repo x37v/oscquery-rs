@@ -65,7 +65,7 @@ impl OscService {
                         if size > 0 {
                             let packet = rosc::decoder::decode(&buf[..size]).unwrap();
                             if let Ok(root) = root.read() {
-                                root.handle_osc_packet(&packet, addr, None);
+                                root.handle_osc_packet(&packet, Some(addr), None);
                             }
                         }
                     }
