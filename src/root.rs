@@ -425,7 +425,6 @@ mod tests {
             "baz".into(),
             None,
             vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
-            None,
         );
 
         //can add a method
@@ -435,10 +434,10 @@ mod tests {
         let mhandle = res.unwrap();
 
         //fails to add method to method
-        let m = crate::node::Get::new(
+        let m = crate::node::GetSet::new(
             "biz".into(),
             None,
-            vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+            vec![ParamGetSet::Int(ValueBuilder::new(a.clone() as _).build())],
             None,
         );
 
@@ -458,10 +457,10 @@ mod tests {
         assert!(c.is_ok());
 
         let a = Arc::new(Atomic::new(2084i32));
-        let m = crate::node::Get::new(
+        let m = crate::node::Set::new(
             "baz".into(),
             None,
-            vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+            vec![ParamSet::Int(ValueBuilder::new(a.clone() as _).build())],
             None,
         );
 
@@ -506,7 +505,6 @@ mod tests {
                     .with_unit("distance.m".into())
                     .build(),
             )],
-            Some(Box::new(|_node, _address, _time| true)),
         );
 
         let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));

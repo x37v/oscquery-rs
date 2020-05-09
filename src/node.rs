@@ -60,18 +60,18 @@ pub struct Container {
     pub(crate) description: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct Get {
     address: String,
     description: Option<String>,
     params: Box<[ParamGet]>,
-    handler: Option<UpdateHandler>,
 }
 
-#[derive(Debug)]
 pub struct Set {
     address: String,
     description: Option<String>,
     params: Box<[ParamSet]>,
+    handler: Option<UpdateHandler>,
 }
 
 pub struct GetSet {
@@ -89,7 +89,7 @@ pub enum Node {
     GetSet(GetSet),
 }
 
-impl fmt::Debug for Get {
+impl fmt::Debug for Set {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -129,7 +129,6 @@ impl Get {
         address: String,
         description: Option<String>,
         params: I,
-        handler: Option<UpdateHandler>,
     ) -> Result<Self, &'static str>
     where
         I: IntoIterator<Item = ParamGet>,
@@ -138,7 +137,6 @@ impl Get {
             address: address_valid(address)?,
             description,
             params: params.into_iter().collect::<Vec<_>>().into(),
-            handler,
         })
     }
 }
@@ -148,6 +146,7 @@ impl Set {
         address: String,
         description: Option<String>,
         params: I,
+        handler: Option<UpdateHandler>,
     ) -> Result<Self, &'static str>
     where
         I: IntoIterator<Item = ParamSet>,
@@ -156,6 +155,7 @@ impl Set {
             address: address_valid(address)?,
             description,
             params: params.into_iter().collect::<Vec<_>>().into(),
+            handler,
         })
     }
 }
@@ -388,12 +388,13 @@ impl OscRender for Node {
 macro_rules! impl_osc_update {
     ($t:ty, $p:ident) => {
         impl OscUpdate for $t {
-            fn osc_update(
-                &self,
-                args: &Vec<OscType>,
-                _addr: SocketAddr,
-                _time: Option<(u32, u32)>,
-            ) {
+            fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr, time: Option<(u32, u32)>) {
+                //if we have a handler, exec and see if we should continue
+                if let Some(handler) = &self.handler {
+                    if !handler(args, addr, time) {
+                        return;
+                    }
+                }
                 for (p, a) in self.params.iter().zip(args) {
                     match a {
                         OscType::Int(v) => {
