@@ -167,21 +167,30 @@ impl RootInner {
         })
     }
 
-    fn handle_osc_msg(&self, msg: &OscMessage, addr: SocketAddr) {
+    fn handle_osc_msg(&self, msg: &OscMessage, addr: SocketAddr, time: Option<(u32, u32)>) {
         self.with_node_at_path(&msg.addr, |node| {
             if let Some(node) = node {
-                node.node.osc_update(&msg.args, addr);
+                node.node.osc_update(&msg.args, addr, time);
             }
         });
     }
 
-    pub fn handle_osc_packet(&self, packet: &OscPacket, addr: SocketAddr) {
+    pub fn handle_osc_packet(
+        &self,
+        packet: &OscPacket,
+        addr: SocketAddr,
+        time: Option<(u32, u32)>,
+    ) {
         match packet {
-            OscPacket::Message(msg) => self.handle_osc_msg(&msg, addr),
+            OscPacket::Message(msg) => self.handle_osc_msg(&msg, addr, time),
             OscPacket::Bundle(bundle) => {
+                let time = if let rosc::OscType::Time(t0, t1) = bundle.timetag {
+                    Some((t0, t1))
+                } else {
+                    time
+                };
                 for p in bundle.content.iter() {
-                    //TODO something with time stamp?
-                    self.handle_osc_packet(p, addr.clone());
+                    self.handle_osc_packet(p, addr.clone(), time);
                 }
             }
         };
@@ -416,6 +425,7 @@ mod tests {
             "baz".into(),
             None,
             vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+            None,
         );
 
         //can add a method
@@ -429,6 +439,7 @@ mod tests {
             "biz".into(),
             None,
             vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+            None,
         );
 
         let res = root.add_node(m.unwrap().into(), Some(mhandle));
@@ -451,6 +462,7 @@ mod tests {
             "baz".into(),
             None,
             vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
+            None,
         );
 
         let r = root.clone();
@@ -494,6 +506,7 @@ mod tests {
                     .with_unit("distance.m".into())
                     .build(),
             )],
+            Some(Box::new(|_node, _address, _time| true)),
         );
 
         let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));

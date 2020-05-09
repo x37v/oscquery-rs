@@ -1,5 +1,6 @@
 use crate::param::OSCTypeStr;
 use crate::param::*;
+use std::fmt;
 
 use rosc::{OscMidiMessage, OscType};
 use std::net::SocketAddr;
@@ -7,8 +8,11 @@ use std::net::SocketAddr;
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
+pub type UpdateHandler =
+    Box<dyn Fn(&Vec<OscType>, SocketAddr, Option<(u32, u32)>) -> bool + Send + Sync>;
+
 pub trait OscUpdate {
-    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr);
+    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr, time: Option<(u32, u32)>);
 }
 
 pub trait OscRender {
@@ -56,11 +60,11 @@ pub struct Container {
     pub(crate) description: Option<String>,
 }
 
-#[derive(Debug)]
 pub struct Get {
     address: String,
     description: Option<String>,
     params: Box<[ParamGet]>,
+    handler: Option<UpdateHandler>,
 }
 
 #[derive(Debug)]
@@ -70,11 +74,11 @@ pub struct Set {
     params: Box<[ParamSet]>,
 }
 
-#[derive(Debug)]
 pub struct GetSet {
     address: String,
     description: Option<String>,
     params: Box<[ParamGetSet]>,
+    handler: Option<UpdateHandler>,
 }
 
 #[derive(Debug)]
@@ -83,6 +87,32 @@ pub enum Node {
     Get(Get),
     Set(Set),
     GetSet(GetSet),
+}
+
+impl fmt::Debug for Get {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "address={:?} description={:?}, params={:?}, handler={:?}",
+            self.address,
+            self.description,
+            self.params,
+            self.handler.is_some()
+        )
+    }
+}
+
+impl std::fmt::Debug for GetSet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "address={:?} description={:?}, params={:?}, handler={:?}",
+            self.address,
+            self.description,
+            self.params,
+            self.handler.is_some()
+        )
+    }
 }
 
 impl Container {
@@ -99,6 +129,7 @@ impl Get {
         address: String,
         description: Option<String>,
         params: I,
+        handler: Option<UpdateHandler>,
     ) -> Result<Self, &'static str>
     where
         I: IntoIterator<Item = ParamGet>,
@@ -107,6 +138,7 @@ impl Get {
             address: address_valid(address)?,
             description,
             params: params.into_iter().collect::<Vec<_>>().into(),
+            handler,
         })
     }
 }
@@ -133,6 +165,7 @@ impl GetSet {
         address: String,
         description: Option<String>,
         params: I,
+        handler: Option<UpdateHandler>,
     ) -> Result<Self, &'static str>
     where
         I: IntoIterator<Item = ParamGetSet>,
@@ -141,6 +174,7 @@ impl GetSet {
             address: address_valid(address)?,
             description,
             params: params.into_iter().collect::<Vec<_>>().into(),
+            handler,
         })
     }
 }
@@ -332,11 +366,11 @@ impl<'a> Serialize for NodeClipModeWrapper<'a> {
 }
 
 impl OscUpdate for Node {
-    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr) {
+    fn osc_update(&self, args: &Vec<OscType>, addr: SocketAddr, time: Option<(u32, u32)>) {
         match self {
             Self::Container(..) | Self::Get(..) => (),
-            Self::Set(n) => n.osc_update(args, addr),
-            Self::GetSet(n) => n.osc_update(args, addr),
+            Self::Set(n) => n.osc_update(args, addr, time),
+            Self::GetSet(n) => n.osc_update(args, addr, time),
         };
     }
 }
@@ -354,7 +388,12 @@ impl OscRender for Node {
 macro_rules! impl_osc_update {
     ($t:ty, $p:ident) => {
         impl OscUpdate for $t {
-            fn osc_update(&self, args: &Vec<OscType>, _addr: SocketAddr) {
+            fn osc_update(
+                &self,
+                args: &Vec<OscType>,
+                _addr: SocketAddr,
+                _time: Option<(u32, u32)>,
+            ) {
                 for (p, a) in self.params.iter().zip(args) {
                     match a {
                         OscType::Int(v) => {
