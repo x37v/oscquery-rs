@@ -2,6 +2,7 @@ use crate::node::OscRender;
 use crate::root::{NodeHandle, NodeWrapper, RootInner};
 
 use rosc::{OscMessage, OscPacket};
+use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::sync::mpsc::{channel, Sender, TryRecvError};
@@ -19,7 +20,7 @@ pub struct OscService {
     handle: Option<JoinHandle<()>>,
     cmd_sender: Sender<Command>,
     local_addr: SocketAddr,
-    send_addrs: Vec<SocketAddr>,
+    send_addrs: HashSet<SocketAddr>,
 }
 
 enum Command {
@@ -85,7 +86,7 @@ impl OscService {
             handle: Some(handle),
             cmd_sender,
             local_addr,
-            send_addrs: Vec::new(),
+            send_addrs: HashSet::new(),
         })
     }
 
@@ -136,7 +137,7 @@ impl OscService {
     }
 
     pub fn add_send_addr(&mut self, addr: SocketAddr) {
-        self.send_addrs.push(addr);
+        self.send_addrs.insert(addr);
     }
 
     /// Returns the `SocketAddr` that the service bound to.
