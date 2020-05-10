@@ -417,9 +417,9 @@ macro_rules! impl_osc_update {
                                 s.value().set(v.to_owned());
                             }
                         }
-                        OscType::Time(v0, v1) => {
+                        OscType::Time(v) => {
                             if let $p::Time(s) = p {
-                                s.value().set((*v0, *v1));
+                                s.value().set(*v);
                             }
                         }
                         OscType::Long(v) => {
@@ -469,10 +469,7 @@ macro_rules! impl_osc_render {
                         $p::Int(v) => args.push(OscType::Int(v.value().get())),
                         $p::Float(v) => args.push(OscType::Float(v.value().get())),
                         $p::String(v) => args.push(OscType::String(v.value().get().clone())),
-                        $p::Time(v) => {
-                            let v = v.value().get();
-                            args.push(OscType::Time(v.0, v.1));
-                        }
+                        $p::Time(v) => args.push(OscType::Time(v.value.get())),
                         $p::Long(v) => args.push(OscType::Long(v.value().get())),
                         $p::Double(v) => args.push(OscType::Double(v.value().get())),
                         $p::Char(v) => args.push(OscType::Char(v.value().get())),

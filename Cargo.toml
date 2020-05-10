@@ -13,7 +13,7 @@ serde = { version = "1.0.106", features = ["derive", "rc"] }
 hyper = "0.13.5"
 tokio = { version = "0.2.19", features = ["full"] }
 futures = "0.3.4"
-rosc = "0.3.0"
+rosc = "0.4.0"
 tungstenite = "0.10.1"
 url = "2.1.1"
 

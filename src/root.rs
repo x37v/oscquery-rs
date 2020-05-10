@@ -189,13 +189,8 @@ impl RootInner {
         match packet {
             OscPacket::Message(msg) => self.handle_osc_msg(&msg, addr, time),
             OscPacket::Bundle(bundle) => {
-                let time = if let rosc::OscType::Time(t0, t1) = bundle.timetag {
-                    Some((t0, t1))
-                } else {
-                    time
-                };
                 for p in bundle.content.iter() {
-                    self.handle_osc_packet(p, addr.clone(), time);
+                    self.handle_osc_packet(p, addr.clone(), Some(bundle.timetag));
                 }
             }
         };
