@@ -15,8 +15,24 @@ pub struct WSService {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-struct WSCommand {
-    command: String,
+enum ClientServerCmd {
+    Listen,
+    Ignore,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum ServerClientCmd {
+    PathChanged,
+    PathRenamed,
+    PathRemoved,
+    PathAdded,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+struct WSCommandPacket<T> {
+    command: T,
     data: String,
 }
 
@@ -34,6 +50,7 @@ impl WSService {
                         loop {
                             if let Ok(msg) = websocket.read_message() {
                                 match msg {
+                                    //binary messages are OSC packets
                                     Message::Binary(v) => {
                                         if let Ok(packet) = rosc::decoder::decode(&v) {
                                             if let Ok(root) = root.read() {
@@ -42,7 +59,11 @@ impl WSService {
                                         }
                                     }
                                     Message::Text(s) => {
-                                        if let Ok(cmd) = serde_json::from_str::<WSCommand>(&s) {
+                                        if let Ok(cmd) = serde_json::from_str::<
+                                            WSCommandPacket<ClientServerCmd>,
+                                        >(
+                                            &s
+                                        ) {
                                             println!("got command {:?}", cmd);
                                         }
                                     }
@@ -60,5 +81,14 @@ impl WSService {
         Ok(Self {
             handle: Some(handle),
         })
+    }
+}
+
+impl Drop for WSService {
+    fn drop(&mut self) {
+        //TODO send command to close
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
     }
 }
