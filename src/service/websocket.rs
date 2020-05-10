@@ -1,4 +1,4 @@
-use std::net::{TcpListener, ToSocketAddrs};
+use std::net::{SocketAddr, TcpListener, ToSocketAddrs};
 use std::thread::{spawn, JoinHandle};
 
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,7 @@ use std::sync::RwLock;
 
 pub struct WSService {
     handle: Option<JoinHandle<()>>,
+    local_addr: SocketAddr,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -42,6 +43,7 @@ impl WSService {
         addr: A,
     ) -> Result<Self, std::io::Error> {
         let server = TcpListener::bind(addr)?;
+        let local_addr = server.local_addr()?;
         let handle = spawn(move || {
             for stream in server.incoming() {
                 let root = root.clone();
@@ -80,7 +82,13 @@ impl WSService {
         });
         Ok(Self {
             handle: Some(handle),
+            local_addr,
         })
+    }
+
+    /// Returns the `SocketAddr` that the service bound to.
+    pub fn local_addr(&self) -> &SocketAddr {
+        &self.local_addr
     }
 }
 
