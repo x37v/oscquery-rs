@@ -94,9 +94,11 @@ impl WSService {
 
 impl Drop for WSService {
     fn drop(&mut self) {
-        //TODO send command to close
+        //TODO send command to close and join
+        /*
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
         }
+        */
     }
 }
