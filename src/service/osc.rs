@@ -101,40 +101,55 @@ impl OscService {
         }
     }
 
-    fn render_and_send(&self, node: &NodeWrapper) {
+    fn render_and_send(&self, node: &NodeWrapper) -> Option<(String, Vec<u8>)> {
         let mut args = Vec::new();
         node.node.osc_render(&mut args);
+        let addr = node.full_path.clone();
         let buf = rosc::encoder::encode(&OscPacket::Message(OscMessage {
-            addr: node.full_path.clone(),
+            addr: addr.clone(),
             args,
         }));
         match buf {
-            Ok(buf) => self.send(&buf),
+            Ok(buf) => {
+                self.send(&buf);
+                Some((addr, buf))
+            }
             Err(..) => {
                 println!("error encoding");
+                None
             }
         }
     }
 
     /// Trigger a OSC send for the node at the given handle, if it is valid.
-    pub fn trigger(&self, handle: NodeHandle) {
+    /// returns the address and renered buffer that was sent, if any
+    pub fn trigger(&self, handle: NodeHandle) -> Option<(String, Vec<u8>)> {
         if let Ok(root) = self.root.read() {
             root.with_node_at_handle(&handle, |node| {
                 if let Some(node) = node {
-                    self.render_and_send(node);
+                    self.render_and_send(node)
+                } else {
+                    None
                 }
-            });
+            })
+        } else {
+            None
         }
     }
 
     /// Trigger an OSC send for the node at the given path, if it is valid.
-    pub fn trigger_path(&self, path: &str) {
+    /// returns the address and renered buffer that was sent, if any
+    pub fn trigger_path(&self, path: &str) -> Option<(String, Vec<u8>)> {
         if let Ok(root) = self.root.read() {
             root.with_node_at_path(path, |node| {
                 if let Some(node) = node {
-                    self.render_and_send(node);
+                    self.render_and_send(node)
+                } else {
+                    None
                 }
-            });
+            })
+        } else {
+            None
         }
     }
 
