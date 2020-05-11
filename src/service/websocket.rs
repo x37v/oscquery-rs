@@ -92,14 +92,6 @@ impl WSService {
                                 Err(Error::ConnectionClosed) | Err(Error::AlreadyClosed) => {
                                     return;
                                 }
-                                Err(Error::Io(e)) => match e.kind() {
-                                    std::io::ErrorKind::WouldBlock
-                                    | std::io::ErrorKind::TimedOut => (),
-                                    e @ _ => {
-                                        println!("io ErrorKind {:?}", e);
-                                        return;
-                                    }
-                                },
                                 Err(..) => (), //TODO
                             }
                         }
