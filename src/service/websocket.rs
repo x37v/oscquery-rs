@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::io::ErrorKind;
 use std::net::{SocketAddr, TcpListener, ToSocketAddrs};
 use std::thread::{spawn, JoinHandle};
 
@@ -58,14 +59,26 @@ impl WSService {
         addr: A,
     ) -> Result<Self, std::io::Error> {
         let server = TcpListener::bind(addr)?;
+        //XXX how do we set non blocking so we can ditch on drop?
+        //server
+        //    .set_nonblocking(true)
+        //    .expect("cannot set to non blocking");
         let (cmd_sender, recv) = broadcast_queue(32);
         let local_addr = server.local_addr()?;
         let handle = spawn(move || {
-            for stream in server.incoming() {
-                if stream.is_err() {
-                    continue;
-                }
-                let stream = stream.unwrap();
+            loop {
+                let stream = server.accept();
+
+                let (stream, _addr) = match stream {
+                    Ok(s) => s,
+                    Err(e) => match e.kind() {
+                        ErrorKind::WouldBlock | ErrorKind::TimedOut => continue,
+                        e @ _ => {
+                            println!("tcp accept error {:?}", e);
+                            return;
+                        }
+                    },
+                };
                 stream
                     .set_read_timeout(Some(READ_TIMEOUT))
                     .expect("cannot set read timeout");
