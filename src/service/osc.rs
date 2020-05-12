@@ -101,18 +101,19 @@ impl OscService {
         }
     }
 
-    fn render_and_send(&self, node: &NodeWrapper) -> Option<(String, Vec<u8>)> {
+    fn render_and_send(&self, node: &NodeWrapper) -> Option<OscMessage> {
         let mut args = Vec::new();
         node.node.osc_render(&mut args);
         let addr = node.full_path.clone();
-        let buf = rosc::encoder::encode(&OscPacket::Message(OscMessage {
+        let msg = OscMessage {
             addr: addr.clone(),
             args,
-        }));
+        };
+        let buf = rosc::encoder::encode(&OscPacket::Message(msg.clone()));
         match buf {
             Ok(buf) => {
                 self.send(&buf);
-                Some((addr, buf))
+                Some(msg)
             }
             Err(..) => {
                 println!("error encoding");
@@ -123,7 +124,7 @@ impl OscService {
 
     /// Trigger a OSC send for the node at the given handle, if it is valid.
     /// returns the address and renered buffer that was sent, if any
-    pub fn trigger(&self, handle: NodeHandle) -> Option<(String, Vec<u8>)> {
+    pub fn trigger(&self, handle: NodeHandle) -> Option<OscMessage> {
         if let Ok(root) = self.root.read() {
             root.with_node_at_handle(&handle, |node| {
                 if let Some(node) = node {
@@ -139,7 +140,7 @@ impl OscService {
 
     /// Trigger an OSC send for the node at the given path, if it is valid.
     /// returns the address and renered buffer that was sent, if any
-    pub fn trigger_path(&self, path: &str) -> Option<(String, Vec<u8>)> {
+    pub fn trigger_path(&self, path: &str) -> Option<OscMessage> {
         if let Ok(root) = self.root.read() {
             root.with_node_at_path(path, |node| {
                 if let Some(node) = node {

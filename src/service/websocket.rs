@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tungstenite::{accept, error::Error, Message};
 
 use multiqueue::{broadcast_queue, BroadcastSender};
-use std::sync::mpsc::TryRecvError;
+use std::sync::mpsc::{TryRecvError, TrySendError};
 
 use crate::root::RootInner;
 use std::sync::Arc;
@@ -82,6 +82,7 @@ impl WSService {
                                 Ok(Command::Osc(m)) => {
                                     //relay osc messages if the remote client has subscribed
                                     if listening.contains(&m.addr) {
+                                        println!("listening {}", m.addr);
                                         if let Ok(buf) =
                                             rosc::encoder::encode(&rosc::OscPacket::Message(m))
                                         {
@@ -115,6 +116,7 @@ impl WSService {
                                                     WSCommandPacket<ClientServerCmd>,
                                                 >(&s)
                                             {
+                                                println!("{:?}", cmd);
                                                 match cmd.command {
                                                     ClientServerCmd::Listen => {
                                                         let _ = listening.insert(cmd.data);
@@ -148,6 +150,26 @@ impl WSService {
             local_addr,
             cmd_sender,
         })
+    }
+
+    pub fn send(&self, msg: rosc::OscMessage) -> Result<(), TrySendError<rosc::OscMessage>> {
+        match self.cmd_sender.try_send(Command::Osc(msg)) {
+            Ok(()) => Ok(()),
+            Err(TrySendError::Full(cmd)) => {
+                if let Command::Osc(msg) = cmd {
+                    Err(TrySendError::Full(msg))
+                } else {
+                    panic!("should be Osc");
+                }
+            }
+            Err(TrySendError::Disconnected(cmd)) => {
+                if let Command::Osc(msg) = cmd {
+                    Err(TrySendError::Disconnected(msg))
+                } else {
+                    panic!("should be Osc");
+                }
+            }
+        }
     }
 
     /// Returns the `SocketAddr` that the service bound to.
