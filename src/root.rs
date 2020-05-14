@@ -43,10 +43,7 @@ struct NodeSerializeContentsWrapper<'a> {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum NodeHandle {
-    Container(NodeIndex),
-    Method(NodeIndex),
-}
+pub struct NodeHandle(NodeIndex);
 
 impl Root {
     pub fn new(name: Option<String>) -> Self {
@@ -94,11 +91,11 @@ impl Root {
         node: Node,
         parent: Option<NodeHandle>,
     ) -> Result<NodeHandle, (Node, &'static str)> {
-        match parent {
-            Some(NodeHandle::Container(i)) => self.add(node, Some(i)),
-            Some(NodeHandle::Method(_)) => Err((node, "cannot add node to a method node")),
-            None => self.add(node, None),
-        }
+        let index = match parent {
+            Some(NodeHandle(i)) => Some(i),
+            None => None,
+        };
+        self.add(node, index)
     }
 
     //TODO remove_node
@@ -154,11 +151,7 @@ impl RootInner {
     where
         F: Fn(Option<&NodeWrapper>) -> R,
     {
-        let index = match handle {
-            NodeHandle::Container(i) => i,
-            NodeHandle::Method(i) => i,
-        };
-        f(self.graph.node_weight(*index))
+        f(self.graph.node_weight(handle.0))
     }
 
     pub fn with_node_at_path<F, R>(&self, path: &str, f: F) -> R
@@ -229,10 +222,6 @@ impl RootInner {
         node: Node,
         parent_index: Option<NodeIndex>,
     ) -> Result<NodeHandle, (Node, &'static str)> {
-        let cont = match node {
-            Node::Container(_) => true,
-            _ => false,
-        };
         let (parent_index, full_path) = if let Some(parent_index) = parent_index {
             if let Some(parent) = self.graph.node_weight(parent_index.clone()) {
                 Ok((parent_index, parent.full_path.clone()))
@@ -254,11 +243,7 @@ impl RootInner {
         let index = self.graph.add_node(node);
         self.index_map.insert(full_path, index);
         let _ = self.graph.add_edge(parent_index, index, ());
-        Ok(if cont {
-            NodeHandle::Container(index)
-        } else {
-            NodeHandle::Method(index)
-        })
+        Ok(NodeHandle(index))
     }
 }
 
@@ -433,7 +418,7 @@ mod tests {
 
         let mhandle = res.unwrap();
 
-        //fails to add method to method
+        //okay to add method to method
         let m = crate::node::GetSet::new(
             "biz".into(),
             None,
@@ -442,10 +427,6 @@ mod tests {
         );
 
         let res = root.add_node(m.unwrap().into(), Some(mhandle));
-        assert!(res.is_err());
-
-        //but can then add to root
-        let res = root.add_node(res.err().unwrap().0, None);
         assert!(res.is_ok());
     }
 
