@@ -1,4 +1,3 @@
-use rosc::{OscMessage, OscPacket, OscType};
 use tungstenite::{connect, Message};
 use url::Url;
 
@@ -19,22 +18,5 @@ fn main() {
             "{\"COMMAND\":\"IGNORE\",\"DATA\":\"/foo/bar\"}".into(),
         ))
         .unwrap();
-
-    socket
-        .write_message(Message::Text(
-            "{\"COMMAND\":\"LISTEN\",\"DATA\":\"/foo/bar\"}".into(),
-        ))
-        .unwrap();
-
-    let v = vec![OscType::Int(101)];
-    let buf = rosc::encoder::encode(&OscPacket::Message(OscMessage {
-        addr: "/foo/bar".to_string(),
-        args: v,
-    }))
-    .unwrap();
-    socket.write_message(Message::Binary(buf)).unwrap();
-
-    let msg = socket.read_message().expect("Error reading message");
-    println!("Received: {}", msg);
     socket.close(None);
 }
