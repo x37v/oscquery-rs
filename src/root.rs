@@ -1,14 +1,18 @@
 use crate::node::*;
 use crate::service::osc::OscService;
 use crate::service::websocket::WSService;
+
 use petgraph::stable_graph::{NodeIndex, StableGraph, WalkNeighbors};
 use rosc::{OscMessage, OscPacket};
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+const NS_CHANGE_LEN: usize = 1024;
 
 type Graph = StableGraph<NodeWrapper, ()>;
 
@@ -18,6 +22,7 @@ pub(crate) struct RootInner {
     root: NodeIndex,
     //for fast lookup by full path
     index_map: HashMap<String, NodeIndex>,
+    ns_change_send: Option<SyncSender<NamespaceChange>>, //TODO vec?
 }
 
 /// The root of an OSCQuery tree.
@@ -44,6 +49,12 @@ struct NodeSerializeContentsWrapper<'a> {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct NodeHandle(NodeIndex);
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum NamespaceChange {
+    PathAdded(String),
+    PathRemoved(String),
+}
 
 impl Root {
     pub fn new(name: Option<String>) -> Self {
@@ -144,6 +155,17 @@ impl RootInner {
             graph,
             root,
             index_map,
+            ns_change_send: None,
+        }
+    }
+
+    pub(crate) fn ns_change_recv(&mut self) -> Option<Receiver<NamespaceChange>> {
+        if self.ns_change_send.is_some() {
+            None
+        } else {
+            let (send, recv) = sync_channel(NS_CHANGE_LEN);
+            self.ns_change_send = Some(send);
+            Some(recv)
         }
     }
 

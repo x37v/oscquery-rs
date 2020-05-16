@@ -10,7 +10,7 @@ use tungstenite::{accept, error::Error, Message};
 use multiqueue::{broadcast_queue, BroadcastSender};
 use std::sync::mpsc::{TryRecvError, TrySendError};
 
-use crate::root::RootInner;
+use crate::root::{NamespaceChange, RootInner};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Duration;
@@ -21,6 +21,7 @@ const READ_TIMEOUT: Duration = Duration::from_millis(1);
 #[derive(Clone, Debug)]
 pub(crate) enum Command {
     Osc(rosc::OscMessage),
+    NamespaceChange(NamespaceChange),
     Close,
 }
 
@@ -59,14 +60,28 @@ impl WSService {
         addr: A,
     ) -> Result<Self, std::io::Error> {
         let server = TcpListener::bind(addr)?;
+        let ns_change_recv = root
+            .write()
+            .expect("cannot write lock root")
+            .ns_change_recv();
+        if ns_change_recv.is_none() {
+            return Err(std::io::Error::new(
+                ErrorKind::Other,
+                "couldn't get namespace change from root",
+            ));
+        }
+        let ns_change_recv = ns_change_recv.unwrap();
         //XXX how do we set non blocking so we can ditch on drop?
-        //server
-        //.set_nonblocking(true)
-        //.expect("cannot set to non blocking");
+        server
+            .set_nonblocking(true)
+            .expect("cannot set to non blocking");
         let (cmd_sender, recv) = broadcast_queue(32);
         let local_addr = server.local_addr()?;
         let handle = spawn(move || {
             loop {
+                if let Ok(ns_change) = ns_change_recv.try_recv() {
+                    //XXX
+                }
                 let (stream, _addr) = match server.accept() {
                     Ok(s) => s,
                     Err(e) => match e.kind() {
@@ -86,6 +101,7 @@ impl WSService {
                     let mut listening: HashSet<String> = HashSet::new();
                     if let Ok(mut websocket) = accept(stream) {
                         loop {
+                            //write any commands
                             match msg_recv.try_recv() {
                                 Ok(Command::Close) => {
                                     return;
@@ -101,14 +117,32 @@ impl WSService {
                                                 .is_err()
                                             {
                                                 println!("error writing osc message");
-                                                return;
                                             }
+                                        }
+                                    }
+                                }
+                                Ok(Command::NamespaceChange(ns)) => {
+                                    let s = serde_json::to_string(&match ns {
+                                        NamespaceChange::PathAdded(p) => WSCommandPacket {
+                                            command: ServerClientCmd::PathAdded,
+                                            data: p.clone(),
+                                        },
+                                        NamespaceChange::PathRemoved(p) => WSCommandPacket {
+                                            command: ServerClientCmd::PathRemoved,
+                                            data: p.clone(),
+                                        },
+                                    });
+                                    if let Ok(s) = s {
+                                        if websocket.write_message(Message::Text(s)).is_err() {
+                                            println!("error writing ns message");
                                         }
                                     }
                                 }
                                 Err(TryRecvError::Empty) => (),
                                 Err(TryRecvError::Disconnected) => return,
                             };
+
+                            //react to any incoming
                             match websocket.read_message() {
                                 Ok(msg) => {
                                     match msg {
