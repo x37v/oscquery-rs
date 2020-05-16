@@ -61,15 +61,13 @@ impl WSService {
         let server = TcpListener::bind(addr)?;
         //XXX how do we set non blocking so we can ditch on drop?
         //server
-        //    .set_nonblocking(true)
-        //    .expect("cannot set to non blocking");
+        //.set_nonblocking(true)
+        //.expect("cannot set to non blocking");
         let (cmd_sender, recv) = broadcast_queue(32);
         let local_addr = server.local_addr()?;
         let handle = spawn(move || {
             loop {
-                let stream = server.accept();
-
-                let (stream, _addr) = match stream {
+                let (stream, _addr) = match server.accept() {
                     Ok(s) => s,
                     Err(e) => match e.kind() {
                         ErrorKind::WouldBlock | ErrorKind::TimedOut => continue,
@@ -95,7 +93,6 @@ impl WSService {
                                 Ok(Command::Osc(m)) => {
                                     //relay osc messages if the remote client has subscribed
                                     if listening.contains(&m.addr) {
-                                        println!("listening {}", m.addr);
                                         if let Ok(buf) =
                                             rosc::encoder::encode(&rosc::OscPacket::Message(m))
                                         {
@@ -103,7 +100,7 @@ impl WSService {
                                                 .write_message(Message::Binary(buf))
                                                 .is_err()
                                             {
-                                                println!("error wrigin osc message");
+                                                println!("error writing osc message");
                                                 return;
                                             }
                                         }
@@ -129,7 +126,6 @@ impl WSService {
                                                     WSCommandPacket<ClientServerCmd>,
                                                 >(&s)
                                             {
-                                                println!("{:?}", cmd);
                                                 match cmd.command {
                                                     ClientServerCmd::Listen => {
                                                         let _ = listening.insert(cmd.data);
@@ -145,7 +141,7 @@ impl WSService {
                                             //TODO if err, return?
                                             let _ = websocket.write_message(Message::Pong(d));
                                         }
-                                        Message::Pong(..) => println!("pong"),
+                                        Message::Pong(..) => (),
                                     };
                                 }
                                 Err(Error::ConnectionClosed) | Err(Error::AlreadyClosed) => {
@@ -193,13 +189,11 @@ impl WSService {
 
 impl Drop for WSService {
     fn drop(&mut self) {
-        /*
-         * XXX how to kill the outter thread??
         if self.cmd_sender.try_send(Command::Close).is_ok() {
+            panic!("will never work, until we figure out outter loop");
             if let Some(handle) = self.handle.take() {
                 let _ = handle.join();
             }
         }
-        */
     }
 }
