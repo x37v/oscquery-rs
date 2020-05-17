@@ -29,18 +29,20 @@ fn main() {
         })),
     );
 
-    let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
-    assert!(res.is_ok());
-
     let mut osc = root.spawn_osc("127.0.0.1:3001").unwrap();
     osc.add_send_addr(SocketAddr::from_str("127.0.0.1:3010").unwrap());
 
     let mut ws = root.spawn_ws("127.0.0.1:3002").unwrap();
 
     let _handle = ServiceHandle::new(
-        root,
+        root.clone(),
         &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3000),
     );
+
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
+    assert!(res.is_ok());
+
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
         if let Some(msg) = osc.trigger_path("/foo/bar") {
