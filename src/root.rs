@@ -263,8 +263,11 @@ impl RootInner {
 
         //actually add
         let index = self.graph.add_node(node);
-        self.index_map.insert(full_path, index);
+        self.index_map.insert(full_path.clone(), index);
         let _ = self.graph.add_edge(parent_index, index, ());
+        if let Some(ns_change_send) = &self.ns_change_send {
+            let _ = ns_change_send.try_send(NamespaceChange::PathAdded(full_path));
+        }
         Ok(NodeHandle(index))
     }
 }
