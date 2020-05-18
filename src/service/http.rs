@@ -67,9 +67,16 @@ pub(crate) struct Extensions {
 
     listen: bool,
     path_changed: bool,
+    path_renamed: bool,
     path_added: bool,
     path_removed: bool,
-    //TODO more
+
+    //TODO
+    tags: bool,
+    extended_type: bool,
+    critical: bool,
+    overloads: bool,
+    html: bool,
 }
 
 impl Default for Extensions {
@@ -84,8 +91,15 @@ impl Default for Extensions {
 
             listen: false,
             path_changed: false,
+            path_renamed: false,
             path_added: false,
             path_removed: false,
+
+            tags: false,
+            extended_type: false,
+            critical: false,
+            overloads: false,
+            html: false,
         }
     }
 }
