@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-pub struct ServiceHandle {
+pub struct HttpService {
     tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
@@ -169,7 +169,7 @@ impl<T> Service<T> for MakeSvc {
     }
 }
 
-impl ServiceHandle {
+impl HttpService {
     pub fn new(root: Arc<Root>, addr: &SocketAddr) -> Self {
         let root = root.clone();
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
@@ -197,7 +197,7 @@ impl ServiceHandle {
     }
 }
 
-impl Drop for ServiceHandle {
+impl Drop for HttpService {
     fn drop(&mut self) {
         if let Some(tx) = self.tx.take() {
             let _ = tx.send(());
