@@ -1,4 +1,3 @@
-use super::{osc::OscService, websocket::WSService};
 use crate::node::NodeQueryParam;
 use crate::root::Root;
 
@@ -17,14 +16,14 @@ pub struct HttpService {
 
 struct Svc {
     root: Arc<Root>,
-    osc: Option<Arc<OscService>>,
-    ws: Option<Arc<WSService>>,
+    osc: Option<SocketAddr>,
+    ws: Option<SocketAddr>,
 }
 
 struct MakeSvc {
     root: Arc<Root>,
-    osc: Option<Arc<OscService>>,
-    ws: Option<Arc<WSService>>,
+    osc: Option<SocketAddr>,
+    ws: Option<SocketAddr>,
 }
 
 struct PathSerializeWrapper<'a> {
@@ -35,8 +34,8 @@ struct PathSerializeWrapper<'a> {
 
 struct HostInfoWrapper {
     root: Arc<Root>,
-    osc: Option<Arc<OscService>>,
-    ws: Option<Arc<WSService>>,
+    osc: Option<SocketAddr>,
+    ws: Option<SocketAddr>,
 }
 
 impl<'a> Serialize for PathSerializeWrapper<'a> {
@@ -121,17 +120,15 @@ impl Serialize for HostInfoWrapper {
         if let Some(name) = self.root.name() {
             m.serialize_entry("NAME".into(), &name)?;
         }
-        if let Some(osc) = &self.osc {
+        if let Some(addr) = &self.osc {
             //TODO TCP support?
             m.serialize_entry("OSC_TRANSPORT", &"UDP")?;
-            let addr = osc.local_addr();
             m.serialize_entry("OSC_IP", &addr.ip())?;
             m.serialize_entry("OSC_PORT", &addr.port())?;
         }
         let mut e: Extensions = Default::default();
-        if let Some(ws) = &self.ws {
+        if let Some(addr) = &self.ws {
             e.with_ws();
-            let addr = ws.local_addr();
             m.serialize_entry("WS_IP", &addr.ip())?;
             m.serialize_entry("WS_PORT", &addr.port())?;
         }
@@ -230,8 +227,8 @@ impl HttpService {
     pub fn new(
         root: Arc<Root>,
         addr: &SocketAddr,
-        osc: Option<Arc<OscService>>,
-        ws: Option<Arc<WSService>>,
+        osc: Option<SocketAddr>,
+        ws: Option<SocketAddr>,
     ) -> Self {
         let root = root.clone();
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
