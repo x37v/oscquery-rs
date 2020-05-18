@@ -17,6 +17,8 @@ pub struct HttpService {
 
 struct Svc {
     root: Arc<Root>,
+    osc: Option<Arc<OscService>>,
+    ws: Option<Arc<WSService>>,
 }
 
 struct MakeSvc {
@@ -33,6 +35,8 @@ struct PathSerializeWrapper<'a> {
 
 struct HostInfoWrapper {
     root: Arc<Root>,
+    osc: Option<Arc<OscService>>,
+    ws: Option<Arc<WSService>>,
 }
 
 impl<'a> Serialize for PathSerializeWrapper<'a> {
@@ -60,6 +64,11 @@ pub(crate) struct Extensions {
     description: bool,
     clipmode: bool,
     unit: bool,
+
+    listen: bool,
+    path_changed: bool,
+    path_added: bool,
+    path_removed: bool,
     //TODO more
 }
 
@@ -72,7 +81,20 @@ impl Default for Extensions {
             description: true,
             clipmode: true,
             unit: true,
+
+            listen: false,
+            path_changed: false,
+            path_added: false,
+            path_removed: false,
         }
+    }
+}
+
+impl Extensions {
+    pub(crate) fn with_ws(&mut self) {
+        self.listen = true;
+        self.path_added = true;
+        self.path_removed = true;
     }
 }
 
@@ -85,7 +107,20 @@ impl Serialize for HostInfoWrapper {
         if let Some(name) = self.root.name() {
             m.serialize_entry("NAME".into(), &name)?;
         }
-        let e: Extensions = Default::default();
+        if let Some(osc) = &self.osc {
+            //TODO TCP support?
+            m.serialize_entry("OSC_TRANSPORT", &"UDP")?;
+            let addr = osc.local_addr();
+            m.serialize_entry("OSC_IP", &addr.ip())?;
+            m.serialize_entry("OSC_PORT", &addr.port())?;
+        }
+        let mut e: Extensions = Default::default();
+        if let Some(ws) = &self.ws {
+            e.with_ws();
+            let addr = ws.local_addr();
+            m.serialize_entry("WS_IP", &addr.ip())?;
+            m.serialize_entry("WS_PORT", &addr.port())?;
+        }
         m.serialize_entry("EXTENSIONS".into(), &e)?;
         m.end()
     }
@@ -107,6 +142,8 @@ impl Service<Request<Body>> for Svc {
                 if p == "HOST_INFO" {
                     let w = HostInfoWrapper {
                         root: self.root.clone(),
+                        osc: self.osc.clone(),
+                        ws: self.ws.clone(),
                     };
                     return future::ok(
                         Response::builder()
@@ -169,6 +206,8 @@ impl<T> Service<T> for MakeSvc {
     fn call(&mut self, _: T) -> Self::Future {
         future::ok(Svc {
             root: self.root.clone(),
+            osc: self.osc.clone(),
+            ws: self.ws.clone(),
         })
     }
 }
