@@ -9,6 +9,10 @@ use std::sync::mpsc::{channel, Sender, TryRecvError};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread::JoinHandle;
+use std::time::Duration;
+
+//what we set the TCP stream read timeout to
+const READ_TIMEOUT: Duration = Duration::from_millis(1);
 
 /// Manage a thread that reads and writes OSC to/from a socket and updates an OSCQuery tree.
 ///
@@ -39,22 +43,18 @@ impl OscService {
         let (cmd_sender, cmd_recv) = channel();
 
         //timeout reads so we can check our cmd queue
-        sock.set_read_timeout(Some(std::time::Duration::from_millis(1)))?;
+        sock.set_read_timeout(Some(READ_TIMEOUT))?;
 
         let r = root.clone();
         let handle = std::thread::spawn(move || {
             let mut buf = [0u8; rosc::decoder::MTU];
             loop {
                 match cmd_recv.try_recv() {
-                    Ok(cmd) => match cmd {
-                        Command::End => {
-                            return;
-                        }
-                        Command::Send(buf, to_addr) => {
-                            //XXX indicate error?
-                            let _ = sock.send_to(&buf, to_addr);
-                        }
-                    },
+                    Ok(Command::End) => return,
+                    Ok(Command::Send(buf, to_addr)) => {
+                        //XXX indicate error?
+                        let _ = sock.send_to(&buf, to_addr);
+                    }
                     Err(TryRecvError::Disconnected) => {
                         return;
                     }
