@@ -187,23 +187,24 @@ impl WSService {
             let mut websockets: Vec<WSHandle> = Vec::new();
             let mut cmds: Vec<HandleCommand> = Vec::new();
             loop {
-                if let Ok(s) = ws_recv.try_recv() {
+                while let Ok(s) = ws_recv.try_recv() {
                     websockets.push(s);
                 }
-                if let Ok(c) = ns_change_recv.try_recv() {
+                while let Ok(c) = ns_change_recv.try_recv() {
                     cmds.push(HandleCommand::NamespaceChange(c));
-                    //XXX
                 }
-                match cmd_recv.try_recv() {
-                    Ok(Command::Close) => {
-                        return;
-                    }
-                    Ok(Command::Osc(m)) => {
-                        cmds.push(HandleCommand::Osc(m));
-                    }
-                    Err(TryRecvError::Empty) => (),
-                    Err(TryRecvError::Disconnected) => return,
-                };
+                loop {
+                    match cmd_recv.try_recv() {
+                        Ok(Command::Close) => {
+                            return;
+                        }
+                        Ok(Command::Osc(m)) => {
+                            cmds.push(HandleCommand::Osc(m));
+                        }
+                        Err(TryRecvError::Empty) => break,
+                        Err(TryRecvError::Disconnected) => return,
+                    };
+                }
                 //run the websocket process methods, filter out those that shouldn't keep going
                 let mut next = Vec::new();
                 for mut ws in websockets {
@@ -227,16 +228,20 @@ impl WSService {
                     }
                 },
             };
+            //println!("spawning");
             stream
                 .set_read_timeout(Some(READ_TIMEOUT))
                 .expect("cannot set read timeout");
-            if let Ok(websocket) = accept(stream) {
-                if ws_send
-                    .send(WSHandle::new(websocket, root.clone()))
-                    .is_err()
-                {
-                    return; //should only happen if the other thread ended
+            match accept(stream) {
+                Ok(websocket) => {
+                    if ws_send
+                        .send(WSHandle::new(websocket, root.clone()))
+                        .is_err()
+                    {
+                        return; //should only happen if the other thread ended
+                    }
                 }
+                Err(e) => println!("error accepting {:?}", e),
             }
         });
         Ok(Self {
