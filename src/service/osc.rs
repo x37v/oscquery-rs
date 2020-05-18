@@ -25,7 +25,7 @@ pub struct OscService {
     handle: Option<JoinHandle<()>>,
     cmd_sender: SyncSender<Command>,
     local_addr: SocketAddr,
-    send_addrs: HashSet<SocketAddr>,
+    send_addrs: RwLock<HashSet<SocketAddr>>,
 }
 
 enum Command {
@@ -87,17 +87,19 @@ impl OscService {
             handle: Some(handle),
             cmd_sender,
             local_addr,
-            send_addrs: HashSet::new(),
+            send_addrs: RwLock::new(HashSet::new()),
         })
     }
 
     fn send(&self, buf: &Vec<u8>) {
-        for addr in &self.send_addrs {
-            if let Err(_) = self
-                .cmd_sender
-                .send(Command::Send(buf.clone(), addr.clone()))
-            {
-                println!("error sending to {}", addr);
+        if let Ok(addrs) = self.send_addrs.read() {
+            for addr in &*addrs {
+                if let Err(_) = self
+                    .cmd_sender
+                    .send(Command::Send(buf.clone(), addr.clone()))
+                {
+                    println!("error sending to {}", addr);
+                }
             }
         }
     }
@@ -156,9 +158,14 @@ impl OscService {
     }
 
     /// Add an address to send all outgoing OSC messages
+    ///
     /// *NOTE* uses a HashSet internally so adding the same address more than once is okay.
-    pub fn add_send_addr(&mut self, addr: SocketAddr) {
-        self.send_addrs.insert(addr);
+    /// This method locks.
+    pub fn add_send_addr(&self, addr: SocketAddr) {
+        self.send_addrs
+            .write()
+            .expect("failed to get write lock")
+            .insert(addr);
     }
 
     /// Returns the `SocketAddr` that the service bound to.
