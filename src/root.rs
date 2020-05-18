@@ -51,7 +51,7 @@ struct NodeSerializeContentsWrapper<'a> {
 pub struct NodeHandle(NodeIndex);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum NamespaceChange {
+pub(crate) enum NamespaceChange {
     PathAdded(String),
     PathRemoved(String),
 }
