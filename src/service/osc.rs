@@ -5,16 +5,17 @@ use rosc::{OscMessage, OscPacket};
 use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
-use std::sync::mpsc::{channel, Sender, TryRecvError};
+use std::sync::mpsc::{sync_channel, SyncSender, TryRecvError};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-//what we set the TCP stream read timeout to
+//TODO: what we set the TCP stream read timeout to?
 const READ_TIMEOUT: Duration = Duration::from_millis(1);
+const CHANNEL_LEN: usize = 1024;
 
-/// Manage a thread that reads and writes OSC to/from a socket and updates an OSCQuery tree.
+/// Manage a thread that reads and writes OSC to/from a socket and updates a values in an OSCQuery tree.
 ///
 /// Drop to stop the service.
 /// *NOTE* this will block until the service thread completes.
@@ -22,7 +23,7 @@ const READ_TIMEOUT: Duration = Duration::from_millis(1);
 pub struct OscService {
     root: Arc<RwLock<RootInner>>,
     handle: Option<JoinHandle<()>>,
-    cmd_sender: Sender<Command>,
+    cmd_sender: SyncSender<Command>,
     local_addr: SocketAddr,
     send_addrs: HashSet<SocketAddr>,
 }
@@ -40,7 +41,7 @@ impl OscService {
     ) -> Result<Self, std::io::Error> {
         let sock = UdpSocket::bind(addr)?;
         let local_addr = sock.local_addr()?;
-        let (cmd_sender, cmd_recv) = channel();
+        let (cmd_sender, cmd_recv) = sync_channel(CHANNEL_LEN);
 
         //timeout reads so we can check our cmd queue
         sock.set_read_timeout(Some(READ_TIMEOUT))?;

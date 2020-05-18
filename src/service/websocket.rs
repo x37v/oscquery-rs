@@ -5,7 +5,7 @@ use std::thread::{spawn, JoinHandle};
 
 use serde::{Deserialize, Serialize};
 
-use std::sync::mpsc::{channel, Sender, TryRecvError};
+use std::sync::mpsc::{channel, sync_channel, SyncSender, TryRecvError};
 use tungstenite::{accept, error::Error, Message, WebSocket};
 
 use crate::root::{NamespaceChange, RootInner};
@@ -15,6 +15,7 @@ use std::time::Duration;
 
 //what we set the TCP stream read timeout to
 const READ_TIMEOUT: Duration = Duration::from_millis(1);
+const CHANNEL_LEN: usize = 1024;
 
 #[derive(Clone, Debug)]
 enum Command {
@@ -22,9 +23,10 @@ enum Command {
     Close,
 }
 
+/// The websocket service for OSCQuery.
 pub struct WSService {
     handles: Option<(JoinHandle<()>, JoinHandle<()>)>,
-    cmd_sender: Sender<Command>,
+    cmd_sender: SyncSender<Command>,
     local_addr: SocketAddr,
 }
 
@@ -179,7 +181,7 @@ impl WSService {
         //.set_nonblocking(true)
         //.expect("cannot set to non blocking");
         let (ws_send, ws_recv) = channel();
-        let (cmd_send, cmd_recv) = channel();
+        let (cmd_send, cmd_recv) = sync_channel(CHANNEL_LEN);
         let local_addr = server.local_addr()?;
 
         //loop over websockets and execute them until complete
