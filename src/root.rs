@@ -47,7 +47,7 @@ struct NodeSerializeContentsWrapper<'a> {
     neighbors: WalkNeighbors<u32>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct NodeHandle(NodeIndex);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -97,6 +97,7 @@ impl Root {
         }
     }
 
+    ///add node to the graph at the root or as a child of the given parent
     pub fn add_node(
         &self,
         node: Node,
@@ -109,8 +110,14 @@ impl Root {
         self.add(node, index)
     }
 
-    //TODO remove_node
-    //ADD method with /long/path/to/leaf so we don't have to add each individual container
+    ///Remove the node at the handle returns it and any children if found
+    ///leafs come first in returned vector
+    pub fn rm_node(&self, handle: NodeHandle) -> Result<Vec<Node>, (NodeHandle, &'static str)> {
+        match self.write_locked() {
+            Ok(mut inner) => inner.rm(handle.0).map_err(|e| (handle, e.1)),
+            Err(s) => Err((handle, s)),
+        }
+    }
 
     pub(crate) fn serialize_node<F, S>(
         &self,
@@ -236,6 +243,26 @@ impl RootInner {
                 None => f(None),
             },
             None => f(None),
+        }
+    }
+
+    pub fn rm(&mut self, index: NodeIndex) -> Result<Vec<Node>, (NodeIndex, &'static str)> {
+        let mut children = self.graph.neighbors(index).detach();
+        let mut v = Vec::new();
+        while let Some(index) = children.next_node(&self.graph) {
+            v.append(&mut self.rm(index).expect("child should be in graph"));
+        }
+        match self.graph.remove_node(index) {
+            Some(node) => {
+                self.index_map.remove(&node.full_path);
+                v.push(node.node);
+                if let Some(ns_change_send) = &self.ns_change_send {
+                    let _ = ns_change_send
+                        .try_send(NamespaceChange::PathRemoved(node.full_path.clone()));
+                }
+                Ok(v)
+            }
+            None => Err((index, &"node at handle not in graph")),
         }
     }
 
@@ -453,6 +480,26 @@ mod tests {
 
         let res = root.add_node(m.unwrap().into(), Some(mhandle));
         assert!(res.is_ok());
+
+        //can remove a method
+        let handle = res.unwrap();
+        let res = root.rm_node(handle.clone());
+        assert!(res.is_ok());
+        let v = res.unwrap();
+        assert_eq!(1, v.len());
+        //second attempt gives error
+        assert!(root.rm_node(handle.clone()).is_err());
+
+        //can remove the top
+        let res = root.rm_node(chandle);
+        assert!(res.is_ok());
+        let v = res.unwrap();
+        assert_eq!(3, v.len());
+
+        //come out with leaf first
+        assert_eq!(&"baz", v[0].address());
+        assert_eq!(&"bar", v[1].address());
+        assert_eq!(&"foo", v[2].address());
     }
 
     #[test]
