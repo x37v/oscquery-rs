@@ -1,3 +1,4 @@
+use super::{osc::OscService, websocket::WSService};
 use crate::node::NodeQueryParam;
 use crate::root::Root;
 
@@ -9,6 +10,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+/// The http server service for OSCQuery http requests.
 pub struct HttpService {
     tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
@@ -19,6 +21,8 @@ struct Svc {
 
 struct MakeSvc {
     root: Arc<Root>,
+    osc: Option<Arc<OscService>>,
+    ws: Option<Arc<WSService>>,
 }
 
 struct PathSerializeWrapper<'a> {
@@ -49,7 +53,7 @@ impl<'a> Serialize for PathSerializeWrapper<'a> {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub struct Extensions {
+pub(crate) struct Extensions {
     access: bool,
     value: bool,
     range: bool,
@@ -170,7 +174,12 @@ impl<T> Service<T> for MakeSvc {
 }
 
 impl HttpService {
-    pub fn new(root: Arc<Root>, addr: &SocketAddr) -> Self {
+    pub fn new(
+        root: Arc<Root>,
+        addr: &SocketAddr,
+        osc: Option<Arc<OscService>>,
+        ws: Option<Arc<WSService>>,
+    ) -> Self {
         let root = root.clone();
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         let addr = addr.clone();
@@ -182,7 +191,7 @@ impl HttpService {
                 .build()
                 .expect("could not create runtime");
             rt.block_on(async {
-                let server = Server::bind(&addr).serve(MakeSvc { root });
+                let server = Server::bind(&addr).serve(MakeSvc { root, osc, ws });
                 let graceful = server.with_graceful_shutdown(async {
                     rx.await.ok();
                     println!("quitting");
