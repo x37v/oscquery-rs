@@ -266,10 +266,10 @@ impl WSService {
 impl Drop for WSService {
     fn drop(&mut self) {
         if self.cmd_sender.send(Command::Close).is_ok() {
-            if let Some(handles) = self.handles.take() {
+            if let Some(_handles) = self.handles.take() {
                 panic!("will never work, until we figure out outter loop");
-                let _ = handles.0.join();
-                let _ = handles.1.join();
+                //let _ = handles.0.join();
+                //let _ = handles.1.join();
             }
         }
     }
