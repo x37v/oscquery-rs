@@ -1,14 +1,26 @@
 use ::atomic::Atomic;
 use oscquery::param::*;
-use oscquery::root::Root;
-use oscquery::service::http::HttpService;
 use oscquery::value::*;
+use oscquery::OscQueryServer;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 
-fn main() {
-    let root = Arc::new(Root::new(Some("server example".into())));
+fn main() -> Result<(), std::io::Error> {
+    let root = OscQueryServer::new(
+        Some("example".into()),
+        &SocketAddr::from_str("127.0.0.1:3000").expect("failed to bind for http"),
+        "127.0.0.1:0",
+        "127.0.0.1:0",
+    )?;
+
+    println!(
+        "http: {} osc: {} ws: {}",
+        root.http_local_addr(),
+        root.osc_local_addr(),
+        root.ws_local_addr()
+    );
+
     let c = oscquery::node::Container::new("foo".into(), Some("description of foo".into()));
     assert!(c.is_ok());
     let res = root.add_node(c.unwrap().into(), None);
@@ -29,22 +41,6 @@ fn main() {
         })),
     );
 
-    let osc = Arc::new(root.spawn_osc("127.0.0.1:0").expect("failed to get osc"));
-    //TODO figure out how to add
-    osc.add_send_addr(SocketAddr::from_str("127.0.0.1:3010").unwrap());
-
-    let ws = Arc::new(
-        root.spawn_ws("127.0.0.1:0")
-            .expect("failed to get websocket"),
-    );
-
-    let _handle = HttpService::new(
-        root.clone(),
-        &SocketAddr::from_str("127.0.0.1:3000").expect("failed to bind for http"),
-        Some(osc.local_addr().clone()),
-        Some(ws.local_addr().clone()),
-    );
-
     std::thread::sleep(std::time::Duration::from_secs(10));
     let parent = res.unwrap();
     let res = root.add_node(m.unwrap().into(), Some(parent.clone()));
@@ -60,8 +56,6 @@ fn main() {
 
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
-        if let Some(msg) = osc.trigger_path("/foo/bar") {
-            ws.send(msg);
-        }
+        root.trigger_path("/foo/bar");
     }
 }
