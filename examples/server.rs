@@ -46,14 +46,6 @@ fn main() -> Result<(), std::io::Error> {
     let res = root.add_node(m.unwrap().into(), Some(parent.clone()));
     assert!(res.is_ok());
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    let res = root.rm_node(parent.clone());
-    assert!(res.is_ok());
-
-    //can remove a second time
-    let res = root.rm_node(parent);
-    assert!(res.is_err());
-
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
         root.trigger_path("/foo/bar");
