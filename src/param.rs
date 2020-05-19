@@ -1,7 +1,7 @@
 use crate::value::*;
 use serde::{Serialize, Serializer};
 
-pub trait OSCTypeStr {
+pub(crate) trait OSCTypeStr {
     fn osc_type_str(&self) -> &'static str;
 }
 
