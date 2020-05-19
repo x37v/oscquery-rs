@@ -225,6 +225,7 @@ impl<T> Service<T> for MakeSvc {
 }
 
 impl HttpService {
+    /// Construct a new http server.
     pub fn new(
         root: Arc<Root>,
         addr: &SocketAddr,
@@ -256,6 +257,7 @@ impl HttpService {
         Self { tx: Some(tx), addr }
     }
 
+    ///The the `SocketAddr` that the http service is bound to.
     pub fn local_addr(&self) -> &SocketAddr {
         &self.addr
     }
