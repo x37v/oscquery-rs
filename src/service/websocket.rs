@@ -84,7 +84,7 @@ impl WSHandle {
                         if let Ok(buf) = rosc::encoder::encode(&rosc::OscPacket::Message(m.clone()))
                         {
                             if self.ws.write_message(Message::Binary(buf)).is_err() {
-                                println!("error writing osc message");
+                                eprintln!("error writing osc message");
                             }
                         }
                     }
@@ -102,7 +102,7 @@ impl WSHandle {
                     });
                     if let Ok(s) = s {
                         if self.ws.write_message(Message::Text(s)).is_err() {
-                            println!("error writing ns message");
+                            eprintln!("error writing ns message");
                         }
                     }
                 }
@@ -225,7 +225,7 @@ impl WSService {
                 Err(e) => match e.kind() {
                     ErrorKind::WouldBlock | ErrorKind::TimedOut => continue,
                     e @ _ => {
-                        println!("tcp accept error {:?}", e);
+                        eprintln!("tcp accept error {:?}", e);
                         return;
                     }
                 },
@@ -243,7 +243,7 @@ impl WSService {
                         return; //should only happen if the other thread ended
                     }
                 }
-                Err(e) => println!("error accepting {:?}", e),
+                Err(e) => eprintln!("error accepting {:?}", e),
             }
         });
         Ok(Self {
