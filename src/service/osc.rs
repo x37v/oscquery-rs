@@ -75,7 +75,7 @@ impl OscService {
                         //https://doc.rust-lang.org/std/net/struct.UdpSocket.html#method.set_read_timeout
                         ErrorKind::WouldBlock | ErrorKind::TimedOut => (),
                         _ => {
-                            println!("Error receiving from socket: {}", e);
+                            eprintln!("Error receiving from socket: {}", e);
                             break;
                         }
                     },
@@ -98,7 +98,7 @@ impl OscService {
                     .cmd_sender
                     .send(Command::Send(buf.clone(), addr.clone()))
                 {
-                    println!("error sending to {}", addr);
+                    eprintln!("error sending to {}", addr);
                 }
             }
         }
@@ -119,7 +119,7 @@ impl OscService {
                 Some(msg)
             }
             Err(..) => {
-                println!("error encoding");
+                eprintln!("error encoding");
                 None
             }
         }
