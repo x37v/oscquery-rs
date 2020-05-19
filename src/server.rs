@@ -9,7 +9,7 @@ pub struct OscQueryServer {
     root: Arc<Root>,
     osc: osc::OscService,
     ws: websocket::WSService,
-    _http: http::HttpService,
+    http: http::HttpService,
 }
 
 impl OscQueryServer {
@@ -33,7 +33,7 @@ impl OscQueryServer {
             root,
             osc,
             ws,
-            _http: http,
+            http,
         })
     }
 
@@ -51,6 +51,11 @@ impl OscQueryServer {
     ///Leaves come first in returned vector.
     pub fn rm_node(&self, handle: NodeHandle) -> Result<Vec<Node>, (NodeHandle, &'static str)> {
         self.root.rm_node(handle)
+    }
+
+    ///Get the Http service's bound address.
+    pub fn http_local_addr(&self) -> &SocketAddr {
+        self.http.local_addr()
     }
 
     ///Get the OSC service's bound address.
