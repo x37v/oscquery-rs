@@ -12,6 +12,7 @@ use std::task::{Context, Poll};
 /// The http server service for OSCQuery http requests.
 pub struct HttpService {
     tx: Option<tokio::sync::oneshot::Sender<()>>,
+    addr: SocketAddr,
 }
 
 struct Svc {
@@ -252,7 +253,11 @@ impl HttpService {
                 }
             });
         });
-        Self { tx: Some(tx) }
+        Self { tx: Some(tx), addr }
+    }
+
+    pub fn local_addr(&self) -> &SocketAddr {
+        &self.addr
     }
 }
 
