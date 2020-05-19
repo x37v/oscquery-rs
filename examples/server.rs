@@ -23,8 +23,8 @@ fn main() -> Result<(), std::io::Error> {
 
     let c = oscquery::node::Container::new("foo".into(), Some("description of foo".into()));
     assert!(c.is_ok());
-    let res = root.add_node(c.unwrap().into(), None);
-    assert!(res.is_ok());
+    let handle = root.add_node(c.unwrap().into(), None);
+    assert!(handle.is_ok());
 
     let a = Arc::new(Atomic::new(2084i32));
     let m = oscquery::node::GetSet::new(
@@ -42,9 +42,9 @@ fn main() -> Result<(), std::io::Error> {
     );
 
     std::thread::sleep(std::time::Duration::from_secs(10));
-    let parent = res.unwrap();
-    let res = root.add_node(m.unwrap().into(), Some(parent.clone()));
-    assert!(res.is_ok());
+    let parent = handle.unwrap();
+    let handle = root.add_node(m.unwrap().into(), Some(parent.clone()));
+    assert!(handle.is_ok());
 
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
