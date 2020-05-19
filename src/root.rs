@@ -47,6 +47,7 @@ struct NodeSerializeContentsWrapper<'a> {
     neighbors: WalkNeighbors<u32>,
 }
 
+/// A handle for a node, to be used for triggering, adding children and/or removing.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct NodeHandle(NodeIndex);
 
