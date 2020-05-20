@@ -193,6 +193,7 @@ async fn handle_connection(
         }
         match msg {
             Message::Ping(d) => {
+                println!("got ping");
                 /*
                 let _ = Runtime::new()
                     .expect("couldn't get send runtime")
@@ -201,6 +202,7 @@ async fn handle_connection(
             }
             Message::Pong(..) => (),
             Message::Close(..) => {
+                println!("should close");
                 iclose.store(true, Ordering::Relaxed);
                 return futures::future::err(tungstenite::error::Error::ConnectionClosed);
             }
@@ -228,56 +230,58 @@ async fn handle_connection(
     });
 
     let cmds = tokio::spawn(async move {
-        while let Ok(cmd) = rx.try_next() {
+        loop {
             if close.load(Ordering::Relaxed) {
-                return;
+                break;
             }
-            if let Some(cmd) = cmd {
-                match cmd {
-                    HandleCommand::Close => {
-                        close.store(true, Ordering::Relaxed);
-                        return;
-                    }
-                    HandleCommand::Osc(m) => {
-                        //relay osc messages if the remote client has subscribed
-                        let send = if let Ok(l) = listening.lock() {
-                            l.contains(&m.addr)
-                        } else {
-                            false
-                        };
-                        if send {
-                            if let Ok(buf) =
-                                rosc::encoder::encode(&rosc::OscPacket::Message(m.clone()))
-                            {
-                                if outgoing.send(Message::Binary(buf)).await.is_err() {
-                                    eprintln!("error writing osc message");
-                                }
-                            }
-                        }
-                    }
-                    HandleCommand::NamespaceChange(c) => {
-                        let s = serde_json::to_string(&match c {
-                            NamespaceChange::PathAdded(p) => WSCommandPacket {
-                                command: ServerClientCmd::PathAdded,
-                                data: p.clone(),
-                            },
-                            NamespaceChange::PathRemoved(p) => WSCommandPacket {
-                                command: ServerClientCmd::PathRemoved,
-                                data: p.clone(),
-                            },
-                        });
-                        if let Ok(s) = s {
-                            if outgoing.send(Message::Text(s)).await.is_err() {
-                                eprintln!("error writing ns message");
+            match rx.next().await {
+                None => break,
+                Some(HandleCommand::Close) => {
+                    println!("should close cmd");
+                    close.store(true, Ordering::Relaxed);
+                    break;
+                }
+                Some(HandleCommand::Osc(m)) => {
+                    //relay osc messages if the remote client has subscribed
+                    let send = if let Ok(l) = listening.lock() {
+                        l.contains(&m.addr)
+                    } else {
+                        false
+                    };
+                    if send {
+                        if let Ok(buf) = rosc::encoder::encode(&rosc::OscPacket::Message(m.clone()))
+                        {
+                            if outgoing.send(Message::Binary(buf)).await.is_err() {
+                                eprintln!("error writing osc message");
                             }
                         }
                     }
                 }
-            }
+                Some(HandleCommand::NamespaceChange(c)) => {
+                    let s = serde_json::to_string(&match c {
+                        NamespaceChange::PathAdded(p) => WSCommandPacket {
+                            command: ServerClientCmd::PathAdded,
+                            data: p.clone(),
+                        },
+                        NamespaceChange::PathRemoved(p) => WSCommandPacket {
+                            command: ServerClientCmd::PathRemoved,
+                            data: p.clone(),
+                        },
+                    });
+                    if let Ok(s) = s {
+                        if outgoing.send(Message::Text(s)).await.is_err() {
+                            eprintln!("error writing ns message");
+                        }
+                    }
+                }
+            };
         }
+        println!("ditching ws command task");
     });
 
+    println!("awaiting incoming and cmds");
     futures::future::select(incoming, cmds).await;
+    println!("incoming and cmds done");
     Ok(())
 }
 
@@ -320,21 +324,43 @@ impl WSService {
                     let broadcast = bc;
                     //read from channel and write
                     loop {
-                        match ns_change_recv.recv() {
+                        let y = match ns_change_recv.try_recv() {
                             Ok(c) => {
                                 println!("ns chnage {:?}", c);
                                 let c = HandleCommand::NamespaceChange(c);
                                 if let Ok(bl) = broadcast.lock() {
-                                    for b in bl.values() {
-                                        let _ = b.unbounded_send(c.clone());
-                                        //TODO if error, remove
+                                    for mut b in bl.values() {
+                                        let _ = b.send(c.clone());
                                     }
                                 }
+                                false
                             }
+                            Err(TryRecvError::Empty) => true,
                             Err(e) => {
                                 println!("cmd error {:?}", e);
-                                break;
+                                return;
                             }
+                        } && match cmd_recv.try_recv() {
+                            Ok(Command::Close) => {
+                                return;
+                            }
+                            Ok(Command::Osc(m)) => {
+                                let c = HandleCommand::Osc(m);
+                                if let Ok(bl) = broadcast.lock() {
+                                    for mut b in bl.values() {
+                                        let _ = b.send(c.clone());
+                                    }
+                                }
+                                false
+                            }
+                            Err(TryRecvError::Empty) => true,
+                            Err(e) => {
+                                println!("cmd error {:?}", e);
+                                return;
+                            }
+                        };
+                        if y {
+                            tokio::task::yield_now().await;
                         }
                     }
                     println!("exit ns loop");
@@ -357,7 +383,8 @@ impl WSService {
                                 let bc = broadcast.clone();
                                 tokio::spawn(async move {
                                     println!("ws spawn");
-                                    let _ = handle_connection(stream, rx, r).await;
+                                    let r = handle_connection(stream, rx, r).await;
+                                    println!("ws exit {:?}", r);
                                     if let Ok(mut bl) = bc.lock() {
                                         bl.remove(&addr);
                                     }
