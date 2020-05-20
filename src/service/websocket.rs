@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
-use std::net::{SocketAddr, SocketAddrV4};
+use std::net::{SocketAddr, SocketAddrV4, ToSocketAddrs};
 use std::str::FromStr;
 use std::thread::{spawn, JoinHandle};
 
@@ -286,9 +286,9 @@ async fn handle_connection(
 }
 
 impl WSService {
-    pub(crate) fn new<A: tokio::net::ToSocketAddrs>(
+    pub(crate) fn new<A: ToSocketAddrs>(
         root: Arc<RwLock<RootInner>>,
-        _addr: A,
+        addr: A,
     ) -> Result<Self, std::io::Error> {
         //get the namespace change channel
         let ns_change_recv = root
@@ -305,8 +305,8 @@ impl WSService {
 
         let (cmd_send, cmd_recv) = sync_channel(CHANNEL_LEN);
 
-        let addr = SocketAddr::V4(SocketAddrV4::from_str("127.0.0.1:44444").unwrap()); //XXX TODO
-        let local_addr = addr.clone();
+        let listener = std::net::TcpListener::bind(addr)?;
+        let local_addr = listener.local_addr()?;
 
         let handle = spawn(move || {
             let mut rt = tokio::runtime::Builder::new()
@@ -366,8 +366,9 @@ impl WSService {
                     println!("exit ns loop");
                 });
                 let spawn = tokio::spawn(async move {
-                    let mut listener = TcpListener::bind(addr).await.unwrap();
-                    println!("ws addr {:?}", listener.local_addr());
+                    let mut listener = TcpListener::from_std(listener).expect(
+                        "failed to convert std::net::TcpListener to tokio::net::TcpListener",
+                    );
                     loop {
                         println!("loop enter");
                         match listener.accept().await {
@@ -402,70 +403,6 @@ impl WSService {
             });
         });
 
-        /*
-        //loop over websockets and execute them until complete
-        let ws_handle = spawn(move || {
-            let mut websockets: Vec<WSHandle> = Vec::new();
-            let mut cmds: Vec<HandleCommand> = Vec::new();
-            loop {
-                while let Ok(s) = ws_recv.try_recv() {
-                    websockets.push(s);
-                }
-                while let Ok(c) = ns_change_recv.try_recv() {
-                    cmds.push(HandleCommand::NamespaceChange(c));
-                }
-                loop {
-                    match cmd_recv.try_recv() {
-                        Ok(Command::Close) => {
-                            return;
-                        }
-                        Ok(Command::Osc(m)) => {
-                            cmds.push(HandleCommand::Osc(m));
-                        }
-                        Err(TryRecvError::Empty) => break,
-                        Err(TryRecvError::Disconnected) => return,
-                    };
-                }
-                //run the websocket process methods, filter out those that shouldn't keep going
-                let mut next = Vec::new();
-                for mut ws in websockets {
-                    if ws.process(&cmds) == HandleContinue::Yes {
-                        next.push(ws);
-                    }
-                }
-                websockets = next;
-                cmds.clear();
-            }
-        });
-
-        let spawn_handle = spawn(move || loop {
-            let (stream, _addr) = match server.accept() {
-                Ok(s) => s,
-                Err(e) => match e.kind() {
-                    ErrorKind::WouldBlock | ErrorKind::TimedOut => continue,
-                    e @ _ => {
-                        eprintln!("tcp accept error {:?}", e);
-                        return;
-                    }
-                },
-            };
-            //println!("spawning");
-            stream
-                .set_read_timeout(Some(READ_TIMEOUT))
-                .expect("cannot set read timeout");
-            match accept(stream) {
-                Ok(websocket) => {
-                    if ws_send
-                        .send(WSHandle::new(websocket, root.clone()))
-                        .is_err()
-                    {
-                        return; //should only happen if the other thread ended
-                    }
-                }
-                Err(e) => println!("error accepting {:?}", e),
-            }
-        });
-        */
         Ok(Self {
             handle: Some(handle),
             local_addr,
