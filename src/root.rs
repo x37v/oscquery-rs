@@ -67,7 +67,10 @@ impl Root {
         Ok(OscService::new(self.inner.clone(), osc_addrs)?)
     }
 
-    pub fn spawn_ws<A: ToSocketAddrs>(&self, ws_addrs: A) -> Result<WSService, std::io::Error> {
+    pub fn spawn_ws<A: tokio::net::ToSocketAddrs>(
+        &self,
+        ws_addrs: A,
+    ) -> Result<WSService, std::io::Error> {
         Ok(WSService::new(self.inner.clone(), ws_addrs)?)
     }
 

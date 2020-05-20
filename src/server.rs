@@ -13,7 +13,7 @@ pub struct OscQueryServer {
 }
 
 impl OscQueryServer {
-    pub fn new<OA: ToSocketAddrs, WA: ToSocketAddrs>(
+    pub fn new<OA: ToSocketAddrs, WA: tokio::net::ToSocketAddrs>(
         server_name: Option<String>,
         http_addr: &SocketAddr,
         osc_addr: OA,
