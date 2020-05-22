@@ -22,7 +22,11 @@ fn main() {
 
     loop {
         match socket.read_message() {
-            Ok(Message::Close(..)) | Err(..) => break,
+            Ok(Message::Close(..)) => break,
+            Err(e) => {
+                println!("error {:?}", e);
+                break;
+            }
             Ok(m) => {
                 println!("{:?}", m);
             }
