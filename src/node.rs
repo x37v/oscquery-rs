@@ -1,5 +1,6 @@
 use crate::param::OSCTypeStr;
 use crate::param::*;
+use crate::root::OscWriteCallback;
 use std::fmt;
 
 use rosc::{OscMidiMessage, OscType};
@@ -8,11 +9,19 @@ use std::net::SocketAddr;
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
-pub type UpdateHandler =
-    Box<dyn Fn(&Vec<OscType>, Option<SocketAddr>, Option<(u32, u32)>) -> bool + Send + Sync>;
+pub trait OscHandler {
+    fn osc_handle(&self, args: &Vec<OscType>, addr: Option<SocketAddr>, time: Option<(u32, u32)>);
+}
+
+pub type UpdateHandler = Box<dyn OscUpdate + Send + Sync>;
 
 pub trait OscUpdate {
-    fn osc_update(&self, args: &Vec<OscType>, addr: Option<SocketAddr>, time: Option<(u32, u32)>);
+    fn osc_update(
+        &self,
+        args: &Vec<OscType>,
+        addr: Option<SocketAddr>,
+        time: Option<(u32, u32)>,
+    ) -> Option<OscWriteCallback>;
 }
 
 pub trait OscRender {
@@ -46,6 +55,21 @@ pub enum NodeQueryParam {
     Access,
     Description,
     Unit,
+}
+
+/// Impl for Fn
+impl<F> OscUpdate for F
+where
+    F: Fn(&Vec<OscType>, Option<SocketAddr>, Option<(u32, u32)>) -> Option<OscWriteCallback>,
+{
+    fn osc_update(
+        &self,
+        args: &Vec<OscType>,
+        addr: Option<SocketAddr>,
+        time: Option<(u32, u32)>,
+    ) -> Option<OscWriteCallback> {
+        (self)(args, addr, time)
+    }
 }
 
 //types:
@@ -366,12 +390,17 @@ impl<'a> Serialize for NodeClipModeWrapper<'a> {
 }
 
 impl OscUpdate for Node {
-    fn osc_update(&self, args: &Vec<OscType>, addr: Option<SocketAddr>, time: Option<(u32, u32)>) {
+    fn osc_update(
+        &self,
+        args: &Vec<OscType>,
+        addr: Option<SocketAddr>,
+        time: Option<(u32, u32)>,
+    ) -> Option<OscWriteCallback> {
         match self {
-            Self::Container(..) | Self::Get(..) => (),
+            Self::Container(..) | Self::Get(..) => None,
             Self::Set(n) => n.osc_update(args, addr, time),
             Self::GetSet(n) => n.osc_update(args, addr, time),
-        };
+        }
     }
 }
 
@@ -393,12 +422,11 @@ macro_rules! impl_osc_update {
                 args: &Vec<OscType>,
                 addr: Option<SocketAddr>,
                 time: Option<(u32, u32)>,
-            ) {
+            ) -> Option<OscWriteCallback> {
+                let mut cb = None;
                 //if we have a handler, exec and see if we should continue
                 if let Some(handler) = &self.handler {
-                    if !handler(args, addr, time) {
-                        return;
-                    }
+                    cb = handler.osc_update(args, addr, time);
                 }
                 for (p, a) in self.params.iter().zip(args) {
                     match a {
@@ -455,6 +483,7 @@ macro_rules! impl_osc_update {
                         OscType::Inf => (),
                     }
                 }
+                cb
             }
         }
     };

@@ -15,6 +15,20 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 const NS_CHANGE_LEN: usize = 1024;
 
 type Graph = StableGraph<NodeWrapper, ()>;
+pub type OscWriteCallback = Box<dyn Fn(&mut dyn OscQueryGraph)>;
+
+pub trait OscQueryGraph {
+    ///add node to the graph at the root or as a child of the given parent
+    fn add_node(
+        &mut self,
+        node: Node,
+        parent: Option<NodeHandle>,
+    ) -> Result<NodeHandle, (Node, &'static str)>;
+
+    ///Remove the node at the handle returns it and any children if found
+    ///leafs come first in returned vector
+    fn rm_node(&mut self, handle: NodeHandle) -> Result<Vec<Node>, (NodeHandle, &'static str)>;
+}
 
 pub(crate) struct RootInner {
     name: Option<String>,
@@ -87,35 +101,23 @@ impl Root {
         self.inner.read().or_else(|_| Err("poisoned lock"))
     }
 
-    fn add(
-        &self,
-        node: Node,
-        parent_index: Option<NodeIndex>,
-    ) -> Result<NodeHandle, (Node, &'static str)> {
-        match self.write_locked() {
-            Ok(mut inner) => inner.add(node, parent_index),
-            Err(s) => Err((node, s)),
-        }
-    }
-
     ///add node to the graph at the root or as a child of the given parent
     pub fn add_node(
         &self,
         node: Node,
         parent: Option<NodeHandle>,
     ) -> Result<NodeHandle, (Node, &'static str)> {
-        let index = match parent {
-            Some(NodeHandle(i)) => Some(i),
-            None => None,
-        };
-        self.add(node, index)
+        match self.write_locked() {
+            Ok(mut inner) => inner.add_node(node, parent),
+            Err(s) => Err((node, s)),
+        }
     }
 
     ///Remove the node at the handle returns it and any children if found
     ///leafs come first in returned vector
     pub fn rm_node(&self, handle: NodeHandle) -> Result<Vec<Node>, (NodeHandle, &'static str)> {
         match self.write_locked() {
-            Ok(mut inner) => inner.rm(handle.0).map_err(|e| (handle, e.1)),
+            Ok(mut inner) => inner.rm_node(handle),
             Err(s) => Err((handle, s)),
         }
     }
@@ -146,8 +148,74 @@ impl Serialize for Root {
     }
 }
 
+impl OscQueryGraph for RootInner {
+    ///add node to the graph at the root or as a child of the given parent
+    fn add_node(
+        &mut self,
+        node: Node,
+        parent: Option<NodeHandle>,
+    ) -> Result<NodeHandle, (Node, &'static str)> {
+        let parent_index = match parent {
+            Some(handle) => Some(handle.0),
+            None => None,
+        };
+        let (parent_index, full_path) = if let Some(parent_index) = parent_index {
+            if let Some(parent) = self.graph.node_weight(parent_index.clone()) {
+                Ok((parent_index, parent.full_path.clone()))
+            } else {
+                return Err((node, "parent not in graph"));
+            }
+        } else {
+            Ok((self.root, "".to_string()))
+        }?;
+
+        //compute the full path
+        let full_path = format!("{}/{}", full_path, node.address());
+        let node = NodeWrapper {
+            node,
+            full_path: full_path.clone(),
+        };
+
+        //actually add
+        let index = self.graph.add_node(node);
+        self.index_map.insert(full_path.clone(), index);
+        let _ = self.graph.add_edge(parent_index, index, ());
+        if let Some(ns_change_send) = &self.ns_change_send {
+            let _ = ns_change_send.try_send(NamespaceChange::PathAdded(full_path));
+        }
+        Ok(NodeHandle(index))
+    }
+
+    ///Remove the node at the handle returns it and any children if found
+    ///leafs come first in returned vector
+    fn rm_node(&mut self, handle: NodeHandle) -> Result<Vec<Node>, (NodeHandle, &'static str)> {
+        let index = handle.0;
+        let mut children = self.graph.neighbors(index).detach();
+        let mut v = Vec::new();
+        while let Some(index) = children.next_node(&self.graph) {
+            v.append(
+                &mut self
+                    .rm_node(NodeHandle(index))
+                    .expect("child should be in graph"),
+            );
+        }
+        match self.graph.remove_node(index) {
+            Some(node) => {
+                self.index_map.remove(&node.full_path);
+                v.push(node.node);
+                if let Some(ns_change_send) = &self.ns_change_send {
+                    let _ = ns_change_send
+                        .try_send(NamespaceChange::PathRemoved(node.full_path.clone()));
+                }
+                Ok(v)
+            }
+            None => Err((handle, &"node at handle not in graph")),
+        }
+    }
+}
+
 impl RootInner {
-    pub fn new(name: Option<String>) -> Self {
+    pub(crate) fn new(name: Option<String>) -> Self {
         let mut graph = StableGraph::default();
         let root = graph.add_node(NodeWrapper {
             full_path: "/".to_string(),
@@ -195,28 +263,49 @@ impl RootInner {
         })
     }
 
-    fn handle_osc_msg(&self, msg: &OscMessage, addr: Option<SocketAddr>, time: Option<(u32, u32)>) {
+    fn handle_osc_msg(
+        &self,
+        msg: &OscMessage,
+        addr: Option<SocketAddr>,
+        time: Option<(u32, u32)>,
+    ) -> Option<OscWriteCallback> {
         self.with_node_at_path(&msg.addr, |node| {
             if let Some(node) = node {
-                node.node.osc_update(&msg.args, addr, time);
+                node.node.osc_update(&msg.args, addr, time)
+            } else {
+                None
             }
-        });
+        })
     }
 
-    pub fn handle_osc_packet(
+    pub(crate) fn handle_osc_packet(
         &self,
         packet: &OscPacket,
         addr: Option<SocketAddr>,
         time: Option<(u32, u32)>,
-    ) {
+    ) -> Option<OscWriteCallback> {
         match packet {
             OscPacket::Message(msg) => self.handle_osc_msg(&msg, addr, time),
             OscPacket::Bundle(bundle) => {
+                let mut callbacks = Vec::new();
                 for p in bundle.content.iter() {
-                    self.handle_osc_packet(p, addr.clone(), Some(bundle.timetag));
+                    if let Some(cb) = self.handle_osc_packet(p, addr.clone(), Some(bundle.timetag))
+                    {
+                        callbacks.push(cb);
+                    }
+                }
+                //handle any callbacks we might have
+                if callbacks.len() == 0 {
+                    None
+                } else {
+                    Some(Box::new(move |root| {
+                        for cb in callbacks.iter() {
+                            cb(root);
+                        }
+                    }))
                 }
             }
-        };
+        }
     }
 
     pub fn name(&self) -> Option<String> {
@@ -245,58 +334,6 @@ impl RootInner {
             },
             None => f(None),
         }
-    }
-
-    pub fn rm(&mut self, index: NodeIndex) -> Result<Vec<Node>, (NodeIndex, &'static str)> {
-        let mut children = self.graph.neighbors(index).detach();
-        let mut v = Vec::new();
-        while let Some(index) = children.next_node(&self.graph) {
-            v.append(&mut self.rm(index).expect("child should be in graph"));
-        }
-        match self.graph.remove_node(index) {
-            Some(node) => {
-                self.index_map.remove(&node.full_path);
-                v.push(node.node);
-                if let Some(ns_change_send) = &self.ns_change_send {
-                    let _ = ns_change_send
-                        .try_send(NamespaceChange::PathRemoved(node.full_path.clone()));
-                }
-                Ok(v)
-            }
-            None => Err((index, &"node at handle not in graph")),
-        }
-    }
-
-    pub fn add(
-        &mut self,
-        node: Node,
-        parent_index: Option<NodeIndex>,
-    ) -> Result<NodeHandle, (Node, &'static str)> {
-        let (parent_index, full_path) = if let Some(parent_index) = parent_index {
-            if let Some(parent) = self.graph.node_weight(parent_index.clone()) {
-                Ok((parent_index, parent.full_path.clone()))
-            } else {
-                return Err((node, "parent not in graph"));
-            }
-        } else {
-            Ok((self.root, "".to_string()))
-        }?;
-
-        //compute the full path
-        let full_path = format!("{}/{}", full_path, node.address());
-        let node = NodeWrapper {
-            node,
-            full_path: full_path.clone(),
-        };
-
-        //actually add
-        let index = self.graph.add_node(node);
-        self.index_map.insert(full_path.clone(), index);
-        let _ = self.graph.add_edge(parent_index, index, ());
-        if let Some(ns_change_send) = &self.ns_change_send {
-            let _ = ns_change_send.try_send(NamespaceChange::PathAdded(full_path));
-        }
-        Ok(NodeHandle(index))
     }
 }
 

@@ -34,10 +34,14 @@ fn main() -> Result<(), std::io::Error> {
                 .with_unit("speed.mph".into())
                 .build(),
         )],
-        Some(Box::new(move |params, address, time| {
-            println!("handler got {:?} {:?} {:?}", params, address, time);
-            true
-        })),
+        Some(Box::new(
+            move |params: &Vec<rosc::OscType>,
+                  address: Option<SocketAddr>,
+                  time: Option<(u32, u32)>| {
+                println!("handler got {:?} {:?} {:?}", params, address, time);
+                None
+            },
+        )),
     );
 
     std::thread::sleep(std::time::Duration::from_secs(10));

@@ -11,6 +11,8 @@ use std::sync::RwLock;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use std::ops::DerefMut;
+
 //TODO: what we set the TCP stream read timeout to?
 const READ_TIMEOUT: Duration = Duration::from_millis(1);
 const CHANNEL_LEN: usize = 1024;
@@ -65,8 +67,15 @@ impl OscService {
                     Ok((size, addr)) => {
                         if size > 0 {
                             let packet = rosc::decoder::decode(&buf[..size]).unwrap();
+                            let mut cb = None;
                             if let Ok(root) = root.read() {
-                                root.handle_osc_packet(&packet, Some(addr), None);
+                                cb = root.handle_osc_packet(&packet, Some(addr), None);
+                            }
+                            //if there was a callback returned, execute it
+                            if let Some(cb) = cb {
+                                if let Ok(mut root) = root.write() {
+                                    cb(root.deref_mut());
+                                }
                             }
                         }
                     }
