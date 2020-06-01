@@ -5,6 +5,8 @@ use std::sync::Arc;
 /// Implementations of Get and Set for all `atomic::Atomic<T: Copy + Send>` types.
 pub mod atomic;
 
+pub mod dummy;
+
 /// Identify how values outside of the associated `Range` should be handled (clipped).
 ///
 /// From the [OSCQueryProposal](https://github.com/Vidvox/OSCQueryProposal)

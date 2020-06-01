@@ -74,7 +74,7 @@ impl OscService {
                             //if there was a callback returned, execute it
                             if let Some(cb) = cb {
                                 if let Ok(mut root) = root.write() {
-                                    cb(root.deref_mut());
+                                    (cb)(root.deref_mut());
                                 }
                             }
                         }

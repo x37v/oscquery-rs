@@ -15,7 +15,7 @@ use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 const NS_CHANGE_LEN: usize = 1024;
 
 type Graph = StableGraph<NodeWrapper, ()>;
-pub type OscWriteCallback = Box<dyn Fn(&mut dyn OscQueryGraph)>;
+pub type OscWriteCallback = Box<dyn FnOnce(&mut dyn OscQueryGraph)>;
 
 pub trait OscQueryGraph {
     ///add node to the graph at the root or as a child of the given parent
@@ -298,11 +298,12 @@ impl RootInner {
                 if callbacks.len() == 0 {
                     None
                 } else {
-                    Some(Box::new(move |root| {
-                        for cb in callbacks.iter() {
-                            cb(root);
+                    let f = Box::new(move |root: &mut dyn OscQueryGraph| {
+                        for cb in callbacks.into_iter() {
+                            (cb)(root);
                         }
-                    }))
+                    });
+                    Some(f)
                 }
             }
         }

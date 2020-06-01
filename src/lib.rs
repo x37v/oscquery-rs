@@ -10,6 +10,7 @@ mod server;
 
 pub use server::OscQueryServer;
 
+pub mod func_wrap;
 pub mod node;
 pub mod param;
 pub mod root;

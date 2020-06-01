@@ -9,10 +9,6 @@ use std::net::SocketAddr;
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::convert::From;
 
-pub trait OscHandler {
-    fn osc_handle(&self, args: &Vec<OscType>, addr: Option<SocketAddr>, time: Option<(u32, u32)>);
-}
-
 pub type UpdateHandler = Box<dyn OscUpdate + Send + Sync>;
 
 pub trait OscUpdate {
@@ -55,21 +51,6 @@ pub enum NodeQueryParam {
     Access,
     Description,
     Unit,
-}
-
-/// Impl for Fn
-impl<F> OscUpdate for F
-where
-    F: Fn(&Vec<OscType>, Option<SocketAddr>, Option<(u32, u32)>) -> Option<OscWriteCallback>,
-{
-    fn osc_update(
-        &self,
-        args: &Vec<OscType>,
-        addr: Option<SocketAddr>,
-        time: Option<(u32, u32)>,
-    ) -> Option<OscWriteCallback> {
-        (self)(args, addr, time)
-    }
 }
 
 //types:
