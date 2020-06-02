@@ -75,7 +75,7 @@ fn main() -> Result<(), std::io::Error> {
                         )
                         .expect("failed to create node");
                         let _ = r.add_node(n.into(), None);
-                    }))
+                    }) as _)
                 }
             },
         ))),
