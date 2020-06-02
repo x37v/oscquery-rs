@@ -52,7 +52,7 @@ fn main() -> Result<(), std::io::Error> {
         .add_node(m.unwrap().into(), Some(parent_handle))
         .expect("to add bar");
 
-    //let p = parent_handle.clone();
+    let p = Some(parent_handle.clone());
     let m = oscquery::node::Set::new(
         "add".into(),
         None,
@@ -60,22 +60,25 @@ fn main() -> Result<(), std::io::Error> {
             ValueBuilder::new(Arc::new(()) as _).build(),
         )],
         Some(Box::new(UpdateFunc2(
-            move |_params: &Vec<rosc::OscType>,
+            move |params: &Vec<rosc::OscType>,
                   _address: Option<SocketAddr>,
                   _time: Option<(u32, u32)>| {
                 {
-                    let name = "asdf"; //TODO
-                    Some(Box::new(move |r: &mut dyn OscQueryGraph| {
-                        let n = oscquery::node::Get::new(
-                            name.into(),
-                            None,
-                            vec![ParamGet::Int(
-                                ValueBuilder::new(Arc::new(Atomic::new(1i32)) as _).build(),
-                            )],
-                        )
-                        .expect("failed to create node");
-                        let _ = r.add_node(n.into(), None);
-                    }) as _)
+                    if let Some(name) = params[0].clone().string() {
+                        Some(Box::new(move |r: &mut dyn OscQueryGraph| {
+                            if let Ok(n) = oscquery::node::Get::new(
+                                name.into(),
+                                None,
+                                vec![ParamGet::Int(
+                                    ValueBuilder::new(Arc::new(Atomic::new(1i32)) as _).build(),
+                                )],
+                            ) {
+                                let _ = r.add_node(n.into(), p);
+                            }
+                        }) as _)
+                    } else {
+                        None
+                    }
                 }
             },
         ))),
