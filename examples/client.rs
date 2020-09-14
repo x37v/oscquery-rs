@@ -1,3 +1,4 @@
+use rosc::{OscMessage, OscPacket, OscType};
 use tungstenite::{connect, Message};
 use url::Url;
 
@@ -13,6 +14,17 @@ fn main() {
     println!("Connected to the server");
     println!("Response HTTP code: {}", response.status());
     println!("Response contains the following headers:");
+
+    // add a node 'soda'
+    let buf = rosc::encoder::encode(&OscPacket::Message(OscMessage {
+        addr: "/foo/add".to_string(),
+        args: vec![OscType::String("soda".to_string())],
+    }))
+    .unwrap();
+
+    socket
+        .write_message(Message::Binary(buf))
+        .expect("error writing");
 
     socket
         .write_message(Message::Text(
