@@ -8,6 +8,7 @@ use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use std::ops::DerefMut;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -278,7 +279,26 @@ impl RootInner {
         })
     }
 
+    /// handle an osc packet, might change the graph
     pub(crate) fn handle_osc_packet(
+        root: &Arc<RwLock<RootInner>>,
+        packet: &OscPacket,
+        addr: Option<SocketAddr>,
+        time: Option<(u32, u32)>,
+    ) {
+        let mut cb = None;
+        if let Ok(root) = root.read() {
+            cb = root.handle_osc_packet_inner(&packet, addr, time);
+        }
+        //if there was a callback returned, execute it
+        if let Some(cb) = cb {
+            if let Ok(mut root) = root.write() {
+                (cb)(root.deref_mut());
+            }
+        }
+    }
+
+    fn handle_osc_packet_inner(
         &self,
         packet: &OscPacket,
         addr: Option<SocketAddr>,
@@ -289,7 +309,8 @@ impl RootInner {
             OscPacket::Bundle(bundle) => {
                 let mut callbacks = Vec::new();
                 for p in bundle.content.iter() {
-                    if let Some(cb) = self.handle_osc_packet(p, addr.clone(), Some(bundle.timetag))
+                    if let Some(cb) =
+                        self.handle_osc_packet_inner(p, addr.clone(), Some(bundle.timetag))
                     {
                         callbacks.push(cb);
                     }

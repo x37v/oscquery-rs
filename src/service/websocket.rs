@@ -132,9 +132,7 @@ async fn handle_connection(
                 }
                 Ok(Message::Binary(v)) => {
                     if let Ok(packet) = rosc::decoder::decode(&v) {
-                        if let Ok(root) = root.read() {
-                            root.handle_osc_packet(&packet, None, None);
-                        }
+                        crate::root::RootInner::handle_osc_packet(&root, &packet, None, None);
                     }
                 }
                 Err(e) => {
