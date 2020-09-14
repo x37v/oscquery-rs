@@ -8,8 +8,6 @@
 
 ## TODO
 
-* figure out how we can construct graph nodes in the osc callback
-  * currently will deadlock, must push a task or command to do it in another thread/context.
 * client impl
   * mirror option
 * extended type
