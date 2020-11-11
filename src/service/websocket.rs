@@ -26,6 +26,7 @@ use std::sync::RwLock;
 
 //what we set the TCP stream read timeout to
 const CHANNEL_LEN: usize = 1024;
+const EMPTY_DELAY: tokio::time::Duration = tokio::time::Duration::from_millis(1);
 
 #[derive(Clone, Debug)]
 enum Command {
@@ -229,15 +230,14 @@ impl WSService {
                 .build()
                 .expect("could not create runtime");
             rt.block_on(async move {
-                let broadcast: Broadcast = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+                let bc: Broadcast = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
 
-                let bc = broadcast.clone();
+                let broadcast = bc.clone();
                 let ns = tokio::spawn(async move {
-                    let broadcast = bc;
                     //read from channel and write
                     loop {
                         let ns = ns_change_recv.try_recv();
-                        let y = match ns {
+                        match ns {
                             Ok(c) => {
                                 let c = HandleCommand::NamespaceChange(c);
                                 for mut b in broadcast.lock().await.values() {
@@ -248,17 +248,22 @@ impl WSService {
                                         );
                                     }
                                 }
-                                false
                             }
-                            Err(TryRecvError::Empty) => true,
+                            Err(TryRecvError::Empty) => tokio::time::delay_for(EMPTY_DELAY).await,
                             Err(e) => {
                                 eprintln!("cmd error {:?}", e);
                                 return;
                             }
                         };
+                    }
+                });
 
+                let broadcast = bc.clone();
+                let cmd = tokio::spawn(async move {
+                    //read from channel and write
+                    loop {
                         let cmd = cmd_recv.try_recv();
-                        let y = match cmd {
+                        match cmd {
                             Ok(Command::Close) => {
                                 for mut b in broadcast.lock().await.values() {
                                     if let Err(e) = b.send(HandleCommand::Close).await {
@@ -274,20 +279,17 @@ impl WSService {
                                         eprintln!("error writing HandleCommand::Osc {:?}", e);
                                     }
                                 }
-                                false
                             }
-                            Err(TryRecvError::Empty) => true,
+                            Err(TryRecvError::Empty) => tokio::time::delay_for(EMPTY_DELAY).await,
                             Err(e) => {
                                 eprintln!("cmd error {:?}", e);
                                 return;
                             }
-                        } && y;
-                        if y {
-                            tokio::task::yield_now().await;
-                            tokio::time::delay_for(tokio::time::Duration::from_millis(1)).await;
-                        }
+                        };
                     }
                 });
+
+                let broadcast = bc.clone();
                 let spawn = tokio::spawn(async move {
                     let mut listener = TcpListener::from_std(listener).expect(
                         "failed to convert std::net::TcpListener to tokio::net::TcpListener",
@@ -311,7 +313,7 @@ impl WSService {
                         };
                     }
                 });
-                futures::future::select(ns, spawn).await;
+                tokio::select!(_ = ns => (), _ = cmd => (), _ = spawn => ());
             });
         });
 
