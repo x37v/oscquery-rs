@@ -12,8 +12,8 @@ fn main() -> Result<(), std::io::Error> {
     let root = OscQueryServer::new(
         Some("example".into()),
         &SocketAddr::from_str("0.0.0.0:3000").expect("failed to bind for http"),
-        "0.0.0.0:0",
-        "0.0.0.0:0",
+        "0.0.0.0:3010",
+        "0.0.0.0:3001",
     )?;
 
     println!(
