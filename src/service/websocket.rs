@@ -276,10 +276,7 @@ impl WSService {
                                 }
                                 false
                             }
-                            Err(TryRecvError::Empty) => {
-                                tokio::time::delay_for(tokio::time::Duration::from_millis(1)).await;
-                                true
-                            }
+                            Err(TryRecvError::Empty) => true,
                             Err(e) => {
                                 eprintln!("cmd error {:?}", e);
                                 return;
@@ -287,6 +284,7 @@ impl WSService {
                         } && y;
                         if y {
                             tokio::task::yield_now().await;
+                            tokio::time::delay_for(tokio::time::Duration::from_millis(1)).await;
                         }
                     }
                 });
