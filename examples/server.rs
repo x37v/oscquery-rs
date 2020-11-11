@@ -11,9 +11,9 @@ use std::sync::Arc;
 fn main() -> Result<(), std::io::Error> {
     let root = OscQueryServer::new(
         Some("example".into()),
-        &SocketAddr::from_str("127.0.0.1:3000").expect("failed to bind for http"),
-        "127.0.0.1:0",
-        "127.0.0.1:0",
+        &SocketAddr::from_str("0.0.0.0:3000").expect("failed to bind for http"),
+        "0.0.0.0:0",
+        "0.0.0.0:0",
     )?;
 
     println!(
