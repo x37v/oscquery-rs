@@ -276,7 +276,10 @@ impl WSService {
                                 }
                                 false
                             }
-                            Err(TryRecvError::Empty) => true,
+                            Err(TryRecvError::Empty) => {
+                                tokio::time::delay_for(tokio::time::Duration::from_millis(1)).await;
+                                true
+                            }
                             Err(e) => {
                                 eprintln!("cmd error {:?}", e);
                                 return;
