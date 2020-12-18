@@ -2,10 +2,8 @@ use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use std::fmt;
 use std::sync::Arc;
 
-/// Implementations of Get and Set for all `atomic::Atomic<T: Copy + Send>` types.
-pub mod atomic;
-
-pub mod dummy;
+mod atomic;
+mod dummy;
 
 /// Identify how values outside of the associated `Range` should be handled (clipped).
 ///
@@ -210,6 +208,12 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "GetSet({:?})", self.as_get().get())
+    }
+}
+
+impl Get<String> for &str {
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 

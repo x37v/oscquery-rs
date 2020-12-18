@@ -1,3 +1,4 @@
+//! Implementation of Set for `()` that doesn't do anything.
 use super::*;
 
 impl<T> Set<T> for () {

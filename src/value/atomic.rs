@@ -1,3 +1,4 @@
+//! Implementations of Get and Set for all `atomic::Atomic<T: Copy + Send>` types.
 use super::*;
 use ::atomic::{Atomic, Ordering};
 
