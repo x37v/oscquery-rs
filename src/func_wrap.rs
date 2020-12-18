@@ -1,3 +1,4 @@
+//! OscUpdate function wrappers.
 use crate::node::OscUpdate;
 use crate::root::OscWriteCallback;
 
