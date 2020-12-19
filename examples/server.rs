@@ -36,12 +36,13 @@ fn main() -> Result<(), std::io::Error> {
                 .with_unit("speed.mph".into())
                 .build(),
         )],
-        Some(Box::new(UpdateFunc(
+        Some(Box::new(OscUpdateFunc(
             move |params: &Vec<rosc::OscType>,
                   address: Option<SocketAddr>,
                   time: Option<(u32, u32)>| {
                 {
                     println!("handler got {:?} {:?} {:?}", params, address, time);
+                    None
                 }
             },
         ))),
@@ -59,7 +60,7 @@ fn main() -> Result<(), std::io::Error> {
         vec![ParamSet::String(
             ValueBuilder::new(Arc::new(()) as _).build(),
         )],
-        Some(Box::new(UpdateFunc2(
+        Some(Box::new(OscUpdateFunc(
             move |params: &Vec<rosc::OscType>,
                   _address: Option<SocketAddr>,
                   _time: Option<(u32, u32)>| {

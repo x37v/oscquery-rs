@@ -1,3 +1,4 @@
+//! Parameter values and their attributes.
 use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use std::fmt;
 use std::sync::Arc;

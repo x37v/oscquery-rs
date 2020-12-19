@@ -1,3 +1,4 @@
+//! OSCQuery tree items.
 use crate::param::OSCTypeStr;
 use crate::param::*;
 use crate::root::OscWriteCallback;
@@ -33,6 +34,7 @@ pub fn address_valid(address: String) -> Result<String, &'static str> {
     }
 }
 
+/// Data access modes.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Access {
     NoValue = 0,
