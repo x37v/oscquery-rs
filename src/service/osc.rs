@@ -128,6 +128,13 @@ impl OscService {
         }
     }
 
+    /// Get the full path at the given handle, if it exists.
+    pub fn handle_to_path(&self, handle: &NodeHandle) -> Option<String> {
+        self.root
+            .read()
+            .map_or(None, |root| root.handle_to_path(handle))
+    }
+
     /// Trigger a OSC send for the node at the given handle, if it is valid.
     /// returns the address and renered buffer that was sent, if any
     pub fn trigger(&self, handle: NodeHandle) -> Option<OscMessage> {

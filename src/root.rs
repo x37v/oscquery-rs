@@ -264,6 +264,12 @@ impl RootInner {
         })
     }
 
+    pub fn handle_to_path(&self, handle: &NodeHandle) -> Option<String> {
+        self.graph
+            .node_weight(handle.0)
+            .map(|n| n.full_path.clone())
+    }
+
     fn handle_osc_msg(
         &self,
         msg: &OscMessage,
@@ -510,12 +516,20 @@ mod tests {
         assert!(res.is_ok());
 
         let chandle = res.unwrap();
+        assert_eq!(
+            Some("/foo".to_string()),
+            root.inner.read().unwrap().handle_to_path(&chandle)
+        );
 
         let c = Container::new("bar".into(), Some("description of foo".into()));
         assert!(c.is_ok());
 
         let res = root.add_node(c.unwrap().into(), Some(chandle));
         assert!(res.is_ok());
+        assert_eq!(
+            Some("/foo/bar".to_string()),
+            root.inner.read().unwrap().handle_to_path(&res.unwrap())
+        );
 
         let a = Arc::new(Atomic::new(2084i32));
         let m = crate::node::Get::new(
@@ -529,6 +543,10 @@ mod tests {
         assert!(res.is_ok());
 
         let mhandle = res.unwrap();
+        assert_eq!(
+            Some("/foo/baz".to_string()),
+            root.inner.read().unwrap().handle_to_path(&mhandle)
+        );
 
         //okay to add method to method
         let m = crate::node::GetSet::new(
