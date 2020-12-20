@@ -53,6 +53,11 @@ impl OscQueryServer {
         self.root.rm_node(handle)
     }
 
+    /// Get the full path that a handle represents, if it exists.
+    pub fn handle_to_path(&self, handle: &NodeHandle) -> Option<String> {
+        self.root.handle_to_path(handle)
+    }
+
     ///Get the Http service's bound address.
     pub fn http_local_addr(&self) -> &SocketAddr {
         self.http.local_addr()

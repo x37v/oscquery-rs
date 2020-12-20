@@ -123,6 +123,12 @@ impl Root {
         }
     }
 
+    pub fn handle_to_path(&self, handle: &NodeHandle) -> Option<String> {
+        self.read_locked()
+            .expect("failed to read lock")
+            .handle_to_path(handle)
+    }
+
     pub(crate) fn serialize_node<F, S>(
         &self,
         path: &str,
@@ -516,10 +522,7 @@ mod tests {
         assert!(res.is_ok());
 
         let chandle = res.unwrap();
-        assert_eq!(
-            Some("/foo".to_string()),
-            root.inner.read().unwrap().handle_to_path(&chandle)
-        );
+        assert_eq!(Some("/foo".to_string()), root.handle_to_path(&chandle));
 
         let c = Container::new("bar".into(), Some("description of foo".into()));
         assert!(c.is_ok());
@@ -528,7 +531,7 @@ mod tests {
         assert!(res.is_ok());
         assert_eq!(
             Some("/foo/bar".to_string()),
-            root.inner.read().unwrap().handle_to_path(&res.unwrap())
+            root.handle_to_path(&res.unwrap())
         );
 
         let a = Arc::new(Atomic::new(2084i32));
@@ -543,10 +546,7 @@ mod tests {
         assert!(res.is_ok());
 
         let mhandle = res.unwrap();
-        assert_eq!(
-            Some("/foo/baz".to_string()),
-            root.inner.read().unwrap().handle_to_path(&mhandle)
-        );
+        assert_eq!(Some("/foo/baz".to_string()), root.handle_to_path(&mhandle));
 
         //okay to add method to method
         let m = crate::node::GetSet::new(
