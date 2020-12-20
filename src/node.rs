@@ -1,7 +1,7 @@
 //! OSCQuery tree items.
 use crate::param::OSCTypeStr;
 use crate::param::*;
-use crate::root::OscWriteCallback;
+use crate::root::{NodeHandle, OscWriteCallback};
 use std::fmt;
 
 use rosc::{OscMidiMessage, OscType};
@@ -18,6 +18,7 @@ pub trait OscUpdate {
         args: &Vec<OscType>,
         addr: Option<SocketAddr>,
         time: Option<(u32, u32)>,
+        handle: &NodeHandle,
     ) -> Option<OscWriteCallback>;
 }
 
@@ -378,11 +379,12 @@ impl OscUpdate for Node {
         args: &Vec<OscType>,
         addr: Option<SocketAddr>,
         time: Option<(u32, u32)>,
+        handle: &NodeHandle,
     ) -> Option<OscWriteCallback> {
         match self {
             Self::Container(..) | Self::Get(..) => None,
-            Self::Set(n) => n.osc_update(args, addr, time),
-            Self::GetSet(n) => n.osc_update(args, addr, time),
+            Self::Set(n) => n.osc_update(args, addr, time, handle),
+            Self::GetSet(n) => n.osc_update(args, addr, time, handle),
         }
     }
 }
@@ -405,11 +407,12 @@ macro_rules! impl_osc_update {
                 args: &Vec<OscType>,
                 addr: Option<SocketAddr>,
                 time: Option<(u32, u32)>,
+                handle: &NodeHandle,
             ) -> Option<OscWriteCallback> {
                 let mut cb = None;
                 //if we have a handler, exec and see if we should continue
                 if let Some(handler) = &self.handler {
-                    cb = handler.osc_update(args, addr, time);
+                    cb = handler.osc_update(args, addr, time, handle);
                 }
                 for (p, a) in self.params.iter().zip(args) {
                     match a {

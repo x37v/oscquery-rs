@@ -1,6 +1,6 @@
 //! Function wrappers.
 use crate::node::OscUpdate;
-use crate::root::OscWriteCallback;
+use crate::root::{NodeHandle, OscWriteCallback};
 
 use rosc::OscType;
 use std::marker::PhantomData;
@@ -18,15 +18,21 @@ impl<F> OscUpdateFunc<F> {
 
 impl<F> OscUpdate for OscUpdateFunc<F>
 where
-    F: Fn(&Vec<OscType>, Option<SocketAddr>, Option<(u32, u32)>) -> Option<OscWriteCallback>,
+    F: Fn(
+        &Vec<OscType>,
+        Option<SocketAddr>,
+        Option<(u32, u32)>,
+        &NodeHandle,
+    ) -> Option<OscWriteCallback>,
 {
     fn osc_update(
         &self,
         args: &Vec<OscType>,
         addr: Option<SocketAddr>,
         time: Option<(u32, u32)>,
+        handle: &NodeHandle,
     ) -> Option<OscWriteCallback> {
-        (self.0)(args, addr, time)
+        (self.0)(args, addr, time, handle)
     }
 }
 

@@ -261,10 +261,10 @@ impl RootInner {
 
     pub fn with_node_at_path<F, R>(&self, path: &str, f: F) -> R
     where
-        F: Fn(Option<&NodeWrapper>) -> R,
+        F: Fn(Option<(&NodeWrapper, &NodeIndex)>) -> R,
     {
         f(if let Some(index) = self.index_map.get(path) {
-            self.graph.node_weight(*index)
+            self.graph.node_weight(*index).map(|n| (n, index))
         } else {
             None
         })
@@ -282,9 +282,10 @@ impl RootInner {
         addr: Option<SocketAddr>,
         time: Option<(u32, u32)>,
     ) -> Option<OscWriteCallback> {
-        self.with_node_at_path(&msg.addr, |node| {
-            if let Some(node) = node {
-                node.node.osc_update(&msg.args, addr, time)
+        self.with_node_at_path(&msg.addr, |ni| {
+            if let Some((node, index)) = ni {
+                node.node
+                    .osc_update(&msg.args, addr, time, &NodeHandle(*index))
             } else {
                 None
             }

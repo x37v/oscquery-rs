@@ -155,8 +155,8 @@ impl OscService {
     /// returns the address and renered buffer that was sent, if any
     pub fn trigger_path(&self, path: &str) -> Option<OscMessage> {
         if let Ok(root) = self.root.read() {
-            root.with_node_at_path(path, |node| {
-                if let Some(node) = node {
+            root.with_node_at_path(path, |ni| {
+                if let Some((node, _)) = ni {
                     self.render_and_send(node)
                 } else {
                     None

@@ -1,7 +1,7 @@
 use ::atomic::Atomic;
 use oscquery::func_wrap::*;
 use oscquery::param::*;
-use oscquery::root::OscQueryGraph;
+use oscquery::root::{NodeHandle, OscQueryGraph};
 use oscquery::value::*;
 use oscquery::OscQueryServer;
 use std::net::SocketAddr;
@@ -39,7 +39,8 @@ fn main() -> Result<(), std::io::Error> {
         Some(Box::new(OscUpdateFunc(
             move |params: &Vec<rosc::OscType>,
                   address: Option<SocketAddr>,
-                  time: Option<(u32, u32)>| {
+                  time: Option<(u32, u32)>,
+                  _handle: &NodeHandle| {
                 {
                     println!("handler got {:?} {:?} {:?}", params, address, time);
                     None
@@ -63,7 +64,8 @@ fn main() -> Result<(), std::io::Error> {
         Some(Box::new(OscUpdateFunc(
             move |params: &Vec<rosc::OscType>,
                   _address: Option<SocketAddr>,
-                  _time: Option<(u32, u32)>| {
+                  _time: Option<(u32, u32)>,
+                  _handle: &NodeHandle| {
                 {
                     if let Some(name) = params[0].clone().string() {
                         Some(Box::new(move |r: &mut dyn OscQueryGraph| {
