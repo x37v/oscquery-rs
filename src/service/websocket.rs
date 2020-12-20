@@ -30,7 +30,7 @@ const EMPTY_DELAY: tokio::time::Duration = tokio::time::Duration::from_millis(1)
 
 #[derive(Clone, Debug)]
 enum Command {
-    Osc(rosc::OscMessage),
+    Osc(crate::osc::OscMessage),
     Close,
 }
 
@@ -66,7 +66,7 @@ struct WSCommandPacket<T> {
 #[derive(Clone, Debug)]
 enum HandleCommand {
     Close,
-    Osc(rosc::OscMessage),
+    Osc(crate::osc::OscMessage),
     NamespaceChange(NamespaceChange),
 }
 
@@ -132,7 +132,7 @@ async fn handle_connection(
                     };
                 }
                 Ok(Message::Binary(v)) => {
-                    if let Ok(packet) = rosc::decoder::decode(&v) {
+                    if let Ok(packet) = crate::osc::decoder::decode(&v) {
                         crate::root::RootInner::handle_osc_packet(&root, &packet, None, None);
                     }
                 }
@@ -164,7 +164,8 @@ async fn handle_connection(
                         false
                     };
                     if send {
-                        if let Ok(buf) = rosc::encoder::encode(&rosc::OscPacket::Message(m.clone()))
+                        if let Ok(buf) =
+                            crate::osc::encoder::encode(&rosc::OscPacket::Message(m.clone()))
                         {
                             if let Err(e) = outgoing.send(Message::Binary(buf)).await {
                                 eprintln!("error writing osc message {:?}", e);
@@ -324,7 +325,7 @@ impl WSService {
         })
     }
 
-    pub fn send(&self, msg: rosc::OscMessage) {
+    pub fn send(&self, msg: crate::osc::OscMessage) {
         let _ = self.cmd_sender.send(Command::Osc(msg));
     }
 

@@ -1,7 +1,7 @@
 use crate::node::OscRender;
+use crate::osc::{OscMessage, OscPacket};
 use crate::root::{NodeHandle, NodeWrapper, RootInner};
 
-use rosc::{OscMessage, OscPacket};
 use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
@@ -48,7 +48,7 @@ impl OscService {
 
         let r = root.clone();
         let handle = std::thread::spawn(move || {
-            let mut buf = [0u8; rosc::decoder::MTU];
+            let mut buf = [0u8; crate::osc::decoder::MTU];
             loop {
                 match cmd_recv.try_recv() {
                     Ok(Command::End) => return,
@@ -64,7 +64,7 @@ impl OscService {
                 match sock.recv_from(&mut buf) {
                     Ok((size, addr)) => {
                         if size > 0 {
-                            let packet = rosc::decoder::decode(&buf[..size]).unwrap();
+                            let packet = crate::osc::decoder::decode(&buf[..size]).unwrap();
                             crate::root::RootInner::handle_osc_packet(
                                 &root,
                                 &packet,
@@ -115,7 +115,7 @@ impl OscService {
             addr: addr.clone(),
             args,
         };
-        let buf = rosc::encoder::encode(&OscPacket::Message(msg.clone()));
+        let buf = crate::osc::encoder::encode(&OscPacket::Message(msg.clone()));
         match buf {
             Ok(buf) => {
                 self.send(&buf);

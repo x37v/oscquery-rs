@@ -1,4 +1,4 @@
-use rosc::{OscMessage, OscPacket, OscType};
+use oscquery::osc::{OscMessage, OscPacket, OscType};
 use tungstenite::{connect, Message};
 use url::Url;
 

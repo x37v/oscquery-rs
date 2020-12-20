@@ -2,7 +2,7 @@
 use crate::node::OscUpdate;
 use crate::root::{NodeHandle, OscWriteCallback};
 
-use rosc::OscType;
+use crate::osc::OscType;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
 

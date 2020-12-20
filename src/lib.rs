@@ -8,6 +8,8 @@ extern crate assert_matches;
 
 mod server;
 
+/// Re-export of [rosc](https://crates.io/crates/rosc).
+pub use rosc as osc;
 pub use server::OscQueryServer;
 
 pub mod func_wrap;

@@ -1,10 +1,10 @@
 //! OSCQuery tree items.
-use crate::param::OSCTypeStr;
-use crate::param::*;
-use crate::root::{NodeHandle, OscWriteCallback};
+use crate::{
+    osc::{OscMidiMessage, OscType},
+    param::*,
+    root::{NodeHandle, OscWriteCallback},
+};
 use std::fmt;
-
-use rosc::{OscMidiMessage, OscType};
 use std::net::SocketAddr;
 
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};

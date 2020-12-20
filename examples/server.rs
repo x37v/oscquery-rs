@@ -37,7 +37,7 @@ fn main() -> Result<(), std::io::Error> {
                 .build(),
         )],
         Some(Box::new(OscUpdateFunc(
-            move |params: &Vec<rosc::OscType>,
+            move |params: &Vec<oscquery::osc::OscType>,
                   address: Option<SocketAddr>,
                   time: Option<(u32, u32)>,
                   _handle: &NodeHandle| {
@@ -62,7 +62,7 @@ fn main() -> Result<(), std::io::Error> {
             ValueBuilder::new(Arc::new(()) as _).build(),
         )],
         Some(Box::new(OscUpdateFunc(
-            move |params: &Vec<rosc::OscType>,
+            move |params: &Vec<oscquery::osc::OscType>,
                   _address: Option<SocketAddr>,
                   _time: Option<(u32, u32)>,
                   _handle: &NodeHandle| {
