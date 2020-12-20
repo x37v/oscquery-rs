@@ -10,6 +10,12 @@ use std::net::SocketAddr;
 /// graph.
 pub struct OscUpdateFunc<F>(pub F);
 
+impl<F> OscUpdateFunc<F> {
+    pub fn new(func: F) -> Self {
+        Self(func)
+    }
+}
+
 impl<F> OscUpdate for OscUpdateFunc<F>
 where
     F: Fn(&Vec<OscType>, Option<SocketAddr>, Option<(u32, u32)>) -> Option<OscWriteCallback>,
@@ -28,6 +34,18 @@ where
 pub struct GetFunc<F, T> {
     func: F,
     _phantom: PhantomData<T>,
+}
+
+impl<F, T> GetFunc<F, T>
+where
+    F: Fn() -> T + Send + Sync,
+{
+    pub fn new(func: F) -> Self {
+        Self {
+            func,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<F, T> crate::value::Get<T> for GetFunc<F, T>
