@@ -8,6 +8,7 @@
 
 ## TODO
 
+* OSC wildcards
 * client impl
   * mirror option
 * extended type
