@@ -37,6 +37,9 @@ where
 }
 
 /// A new-type wrapper for a function that can get a value.
+///
+/// # Remarks
+/// * Also implements a no-op set.
 pub struct GetFunc<F, T> {
     func: F,
     _phantom: PhantomData<T>,
@@ -101,6 +104,15 @@ where
     fn get(&self) -> T {
         (self.func)()
     }
+}
+
+//no op set
+impl<F, T> crate::value::Set<T> for GetFunc<F, T>
+where
+    F: Send + Sync,
+    T: Send + Sync,
+{
+    fn set(&self, _value: T) {}
 }
 
 impl<F, T> crate::value::Set<T> for SetFunc<F, T>
