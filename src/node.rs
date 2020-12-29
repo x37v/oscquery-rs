@@ -409,6 +409,8 @@ macro_rules! impl_osc_update {
                 time: Option<(u32, u32)>,
                 handle: &NodeHandle,
             ) -> Option<OscWriteCallback> {
+                //XXX for GetSet, should we trigger if we actually did do a set?
+
                 let mut cb = None;
                 //if we have a handler, exec and see if we should continue
                 if let Some(handler) = &self.handler {
@@ -462,11 +464,11 @@ macro_rules! impl_osc_update {
                             }
                         }
                         //TODO
-                        OscType::Blob(..) => (),
-                        OscType::Color(..) => (),
-                        OscType::Array(..) => (),
-                        OscType::Nil => (),
-                        OscType::Inf => (),
+                        OscType::Blob(..)
+                        | OscType::Color(..)
+                        | OscType::Array(..)
+                        | OscType::Nil
+                        | OscType::Inf => unimplemented!(),
                     }
                 }
                 cb
