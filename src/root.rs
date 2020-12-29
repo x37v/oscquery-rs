@@ -103,11 +103,15 @@ impl Root {
     }
 
     ///add node to the graph at the root or as a child of the given parent
-    pub fn add_node(
+    pub fn add_node<N>(
         &self,
-        node: Node,
+        node: N,
         parent: Option<NodeHandle>,
-    ) -> Result<NodeHandle, (Node, &'static str)> {
+    ) -> Result<NodeHandle, (Node, &'static str)>
+    where
+        N: Into<Node>,
+    {
+        let node = node.into();
         match self.write_locked() {
             Ok(mut inner) => inner.add_node(node, parent),
             Err(s) => Err((node, s)),
@@ -519,7 +523,7 @@ mod tests {
         let c = Container::new("foo", Some("description of foo".into()));
         assert!(c.is_ok());
 
-        let res = root.add_node(c.unwrap().into(), None);
+        let res = root.add_node(c.unwrap(), None);
         assert!(res.is_ok());
 
         let chandle = res.unwrap();
@@ -528,7 +532,7 @@ mod tests {
         let c = Container::new("bar", Some("description of foo".into()));
         assert!(c.is_ok());
 
-        let res = root.add_node(c.unwrap().into(), Some(chandle));
+        let res = root.add_node(c.unwrap(), Some(chandle));
         assert!(res.is_ok());
         assert_eq!(
             Some("/foo/bar".to_string()),
@@ -543,7 +547,7 @@ mod tests {
         );
 
         //can add a method
-        let res = root.add_node(m.unwrap().into(), Some(chandle));
+        let res = root.add_node(m.unwrap(), Some(chandle));
         assert!(res.is_ok());
 
         let mhandle = res.unwrap();
@@ -557,7 +561,7 @@ mod tests {
             None,
         );
 
-        let res = root.add_node(m.unwrap().into(), Some(mhandle));
+        let res = root.add_node(m.unwrap(), Some(mhandle));
         assert!(res.is_ok());
 
         //can remove a method
@@ -598,20 +602,20 @@ mod tests {
 
         let r = root.clone();
         let h = thread::spawn(move || {
-            let res = r.add_node(c.unwrap().into(), None);
+            let res = r.add_node(c.unwrap(), None);
             assert!(res.is_ok());
 
             let c = Container::new("bar", None);
             assert!(c.is_ok());
-            let res = r.add_node(c.unwrap().into(), Some(res.unwrap()));
+            let res = r.add_node(c.unwrap(), Some(res.unwrap()));
             assert!(res.is_ok());
 
-            let res = r.add_node(m.unwrap().into(), Some(res.unwrap()));
+            let res = r.add_node(m.unwrap(), Some(res.unwrap()));
             assert!(res.is_ok());
         });
         let c = Container::new("bar", None);
         assert!(c.is_ok());
-        let res = root.add_node(c.unwrap().into(), None);
+        let res = root.add_node(c.unwrap(), None);
         assert!(res.is_ok());
 
         assert!(h.join().is_ok());
@@ -625,7 +629,7 @@ mod tests {
 
         let c = Container::new("foo", Some("description of foo".into()));
         assert!(c.is_ok());
-        let res = root.add_node(c.unwrap().into(), None);
+        let res = root.add_node(c.unwrap(), None);
         assert!(res.is_ok());
 
         let a = Arc::new(Atomic::new(2084i32));
@@ -639,7 +643,7 @@ mod tests {
             )],
         );
 
-        let res = root.add_node(m.unwrap().into(), Some(res.unwrap()));
+        let res = root.add_node(m.unwrap(), Some(res.unwrap()));
         assert!(res.is_ok());
 
         let j = serde_json::to_value(root);
