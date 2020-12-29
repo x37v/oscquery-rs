@@ -38,12 +38,15 @@ impl OscQueryServer {
     }
 
     ///Add node to the graph at the root or as a child of the given parent
-    pub fn add_node(
+    pub fn add_node<N>(
         &self,
-        node: Node,
+        node: N,
         parent: Option<NodeHandle>,
-    ) -> Result<NodeHandle, (Node, &'static str)> {
-        self.root.add_node(node, parent)
+    ) -> Result<NodeHandle, (Node, &'static str)>
+    where
+        N: Into<Node>,
+    {
+        self.root.add_node(node.into(), parent)
     }
 
     ///Remove the node at the handle returns it and any children if found.

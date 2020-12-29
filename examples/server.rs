@@ -25,7 +25,7 @@ fn main() -> Result<(), std::io::Error> {
 
     let c = oscquery::node::Container::new("foo", Some("description of foo".into()))
         .expect("to construct foo");
-    let parent_handle = root.add_node(c.into(), None).expect("to add foo");
+    let parent_handle = root.add_node(c, None).expect("to add foo");
 
     let a = Arc::new(Atomic::new(2084i32));
     let m = oscquery::node::GetSet::new(
@@ -51,7 +51,7 @@ fn main() -> Result<(), std::io::Error> {
 
     std::thread::sleep(std::time::Duration::from_secs(10));
     let _handle = root
-        .add_node(m.unwrap().into(), Some(parent_handle))
+        .add_node(m.unwrap(), Some(parent_handle))
         .expect("to add bar");
 
     let p = Some(parent_handle.clone());
@@ -87,7 +87,7 @@ fn main() -> Result<(), std::io::Error> {
         ))),
     );
     let _handle = root
-        .add_node(m.unwrap().into(), Some(parent_handle))
+        .add_node(m.unwrap(), Some(parent_handle))
         .expect("to add bar");
 
     loop {
