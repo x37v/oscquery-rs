@@ -124,44 +124,45 @@ impl std::fmt::Debug for GetSet {
 }
 
 impl Container {
-    pub fn new(address: String, description: Option<String>) -> Result<Self, &'static str> {
+    pub fn new<A>(address: A, description: Option<&str>) -> Result<Self, &'static str>
+    where
+        A: ToString,
+    {
         Ok(Self {
-            address: address_valid(address)?,
-            description,
+            address: address_valid(address.to_string())?,
+            description: description.map(|d| d.into()),
         })
     }
 }
 
 impl Get {
-    pub fn new<I>(
-        address: String,
-        description: Option<String>,
-        params: I,
-    ) -> Result<Self, &'static str>
+    pub fn new<I, A>(address: A, description: Option<&str>, params: I) -> Result<Self, &'static str>
     where
         I: IntoIterator<Item = ParamGet>,
+        A: ToString,
     {
         Ok(Self {
-            address: address_valid(address)?,
-            description,
+            address: address_valid(address.to_string())?,
+            description: description.map(|d| d.into()),
             params: params.into_iter().collect::<Vec<_>>().into(),
         })
     }
 }
 
 impl Set {
-    pub fn new<I>(
-        address: String,
-        description: Option<String>,
+    pub fn new<I, A>(
+        address: A,
+        description: Option<&str>,
         params: I,
         handler: Option<UpdateHandler>,
     ) -> Result<Self, &'static str>
     where
         I: IntoIterator<Item = ParamSet>,
+        A: ToString,
     {
         Ok(Self {
-            address: address_valid(address)?,
-            description,
+            address: address_valid(address.to_string())?,
+            description: description.map(|d| d.into()),
             params: params.into_iter().collect::<Vec<_>>().into(),
             handler,
         })
@@ -169,18 +170,19 @@ impl Set {
 }
 
 impl GetSet {
-    pub fn new<I>(
-        address: String,
-        description: Option<String>,
+    pub fn new<I, A>(
+        address: A,
+        description: Option<&str>,
         params: I,
         handler: Option<UpdateHandler>,
     ) -> Result<Self, &'static str>
     where
         I: IntoIterator<Item = ParamGetSet>,
+        A: ToString,
     {
         Ok(Self {
-            address: address_valid(address)?,
-            description,
+            address: address_valid(address.to_string())?,
+            description: description.map(|d| d.into()),
             params: params.into_iter().collect::<Vec<_>>().into(),
             handler,
         })

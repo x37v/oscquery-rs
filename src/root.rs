@@ -516,7 +516,7 @@ mod tests {
     fn basic_expectations() {
         let root = Root::new(Some("test".into()));
 
-        let c = Container::new("foo".into(), Some("description of foo".into()));
+        let c = Container::new("foo", Some("description of foo".into()));
         assert!(c.is_ok());
 
         let res = root.add_node(c.unwrap().into(), None);
@@ -525,7 +525,7 @@ mod tests {
         let chandle = res.unwrap();
         assert_eq!(Some("/foo".to_string()), root.handle_to_path(&chandle));
 
-        let c = Container::new("bar".into(), Some("description of foo".into()));
+        let c = Container::new("bar", Some("description of foo".into()));
         assert!(c.is_ok());
 
         let res = root.add_node(c.unwrap().into(), Some(chandle));
@@ -537,7 +537,7 @@ mod tests {
 
         let a = Arc::new(Atomic::new(2084i32));
         let m = crate::node::Get::new(
-            "baz".into(),
+            "baz",
             None,
             vec![ParamGet::Int(ValueBuilder::new(a.clone() as _).build())],
         );
@@ -551,7 +551,7 @@ mod tests {
 
         //okay to add method to method
         let m = crate::node::GetSet::new(
-            "biz".into(),
+            &"biz",
             None,
             vec![ParamGetSet::Int(ValueBuilder::new(a.clone() as _).build())],
             None,
@@ -585,12 +585,12 @@ mod tests {
     fn is_send_and_sync() {
         let root = Arc::new(Root::new(None));
 
-        let c = Container::new("foo".into(), Some("description of foo".into()));
+        let c = Container::new("foo", Some("description of foo"));
         assert!(c.is_ok());
 
         let a = Arc::new(Atomic::new(2084i32));
         let m = crate::node::Set::new(
-            "baz".into(),
+            "baz",
             None,
             vec![ParamSet::Int(ValueBuilder::new(a.clone() as _).build())],
             None,
@@ -601,7 +601,7 @@ mod tests {
             let res = r.add_node(c.unwrap().into(), None);
             assert!(res.is_ok());
 
-            let c = Container::new("bar".into(), None);
+            let c = Container::new("bar", None);
             assert!(c.is_ok());
             let res = r.add_node(c.unwrap().into(), Some(res.unwrap()));
             assert!(res.is_ok());
@@ -609,7 +609,7 @@ mod tests {
             let res = r.add_node(m.unwrap().into(), Some(res.unwrap()));
             assert!(res.is_ok());
         });
-        let c = Container::new("bar".into(), None);
+        let c = Container::new("bar", None);
         assert!(c.is_ok());
         let res = root.add_node(c.unwrap().into(), None);
         assert!(res.is_ok());
@@ -623,15 +623,15 @@ mod tests {
     fn serialize() {
         let root = Arc::new(Root::new(Some("test".into())));
 
-        let c = Container::new("foo".into(), Some("description of foo".into()));
+        let c = Container::new("foo", Some("description of foo".into()));
         assert!(c.is_ok());
         let res = root.add_node(c.unwrap().into(), None);
         assert!(res.is_ok());
 
         let a = Arc::new(Atomic::new(2084i32));
         let m = crate::node::Get::new(
-            "bar".into(),
-            None,
+            "bar",
+            Some(&"b"),
             vec![ParamGet::Int(
                 ValueBuilder::new(a.clone() as _)
                     .with_unit("distance.m".into())
@@ -658,6 +658,7 @@ mod tests {
                         "CONTENTS": {
                             "bar": {
                                 "ACCESS": 1,
+                                "DESCRIPTION": "b",
                                 "FULL_PATH": "/foo/bar",
                                 "VALUE": [2084],
                                 "UNIT": ["distance.m"],

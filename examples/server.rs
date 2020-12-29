@@ -23,13 +23,13 @@ fn main() -> Result<(), std::io::Error> {
         root.ws_local_addr()
     );
 
-    let c = oscquery::node::Container::new("foo".into(), Some("description of foo".into()))
+    let c = oscquery::node::Container::new("foo", Some("description of foo".into()))
         .expect("to construct foo");
     let parent_handle = root.add_node(c.into(), None).expect("to add foo");
 
     let a = Arc::new(Atomic::new(2084i32));
     let m = oscquery::node::GetSet::new(
-        "bar".into(),
+        &"bar",
         None,
         vec![ParamGetSet::Int(
             ValueBuilder::new(a.clone() as _)
@@ -56,7 +56,7 @@ fn main() -> Result<(), std::io::Error> {
 
     let p = Some(parent_handle.clone());
     let m = oscquery::node::Set::new(
-        "add".into(),
+        "add",
         None,
         vec![ParamSet::String(
             ValueBuilder::new(Arc::new(()) as _).build(),
@@ -70,7 +70,7 @@ fn main() -> Result<(), std::io::Error> {
                     if let Some(name) = params[0].clone().string() {
                         Some(Box::new(move |r: &mut dyn OscQueryGraph| {
                             if let Ok(n) = oscquery::node::Get::new(
-                                name.into(),
+                                name,
                                 None,
                                 vec![ParamGet::Int(
                                     ValueBuilder::new(Arc::new(Atomic::new(1i32)) as _).build(),
