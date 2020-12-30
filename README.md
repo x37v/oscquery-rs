@@ -8,6 +8,10 @@
 
 ## TODO
 
+* Simplify, Document better
+* HTTP upgrade to WS
+* Allow for control of OSC/WS/HTTP I/O timing
+	* So that we can control when our Get/Set etc is accessed
 * OSC wildcards
 * client impl
   * mirror option
