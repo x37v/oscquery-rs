@@ -1,7 +1,6 @@
 //! Parameter values and their attributes.
 use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
-use std::fmt;
-use std::sync::Arc;
+use std::{fmt, ops::Deref, sync::Arc};
 
 mod atomic;
 mod dummy;
@@ -217,6 +216,31 @@ impl Get<String> for &str {
         self.to_string()
     }
 }
+
+macro_rules! impl_box_arc_get {
+    ($t:ty) => {
+        impl Get<$t> for Box<$t> {
+            fn get(&self) -> $t {
+                self.deref().clone()
+            }
+        }
+        impl Get<$t> for Arc<$t> {
+            fn get(&self) -> $t {
+                self.deref().clone()
+            }
+        }
+    };
+}
+
+impl_box_arc_get!(i32);
+impl_box_arc_get!(f32);
+impl_box_arc_get!(String);
+impl_box_arc_get!((u32, u32));
+impl_box_arc_get!(i64);
+impl_box_arc_get!(f64);
+impl_box_arc_get!(char);
+impl_box_arc_get!((u8, u8, u8, u8));
+impl_box_arc_get!(bool);
 
 #[cfg(test)]
 mod tests {
