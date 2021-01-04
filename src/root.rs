@@ -632,6 +632,8 @@ mod tests {
         let res = root.add_node(c.unwrap(), None);
         assert!(res.is_ok());
 
+        let root_handle = res.unwrap();
+
         let a = Arc::new(Atomic::new(2084i32));
         let m = crate::node::Get::new(
             "bar",
@@ -643,7 +645,7 @@ mod tests {
             )],
         );
 
-        let res = root.add_node(m.unwrap(), Some(res.unwrap()));
+        let res = root.add_node(m.unwrap(), Some(root_handle));
         assert!(res.is_ok());
 
         let j = serde_json::to_value(root);
@@ -671,6 +673,52 @@ mod tests {
                                 "CLIPMODE": ["none"]
                             }
                         }
+                    }
+                }
+            })
+            .clone()
+        );
+    }
+
+    #[test]
+    fn serialize_array() {
+        let root = Arc::new(Root::new(Some("test".into())));
+
+        let m = crate::node::Get::new(
+            "baz",
+            Some(&"array"),
+            vec![ParamGet::Array(
+                ValueBuilder::new(Arc::new(crate::osc::OscArray {
+                    content: vec![
+                        crate::osc::OscType::Double(23.0),
+                        crate::osc::OscType::Long(589),
+                    ],
+                }) as _)
+                .build(),
+            )],
+        );
+
+        let res = root.add_node(m.unwrap(), None);
+        assert!(res.is_ok());
+
+        let j = serde_json::to_value(root);
+        assert!(j.is_ok());
+        assert_eq!(
+            j.unwrap(),
+            json!({
+                "ACCESS": 0,
+                "DESCRIPTION": "root node",
+                "FULL_PATH": "/",
+                "CONTENTS": {
+                    "baz": {
+                        "ACCESS": 1,
+                        "DESCRIPTION": "array",
+                        "FULL_PATH": "/baz",
+                        "VALUE": [[23.0, 589]],
+                        "TYPE": "[dh]",
+                        "RANGE": [[{}]],
+                        "UNIT": [[null]],
+                        "CLIPMODE": [["none"]]
                     }
                 }
             })

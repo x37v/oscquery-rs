@@ -234,17 +234,17 @@ impl Node {
             Node::Get(n) => Some(
                 n.params
                     .iter()
-                    .fold(String::new(), |acc, x| acc + x.osc_type_str()),
+                    .fold(String::new(), |acc, x| acc + x.osc_type_str().as_str()),
             ),
             Node::Set(n) => Some(
                 n.params
                     .iter()
-                    .fold(String::new(), |acc, x| acc + x.osc_type_str()),
+                    .fold(String::new(), |acc, x| acc + x.osc_type_str().as_str()),
             ),
             Node::GetSet(n) => Some(
                 n.params
                     .iter()
-                    .fold(String::new(), |acc, x| acc + x.osc_type_str()),
+                    .fold(String::new(), |acc, x| acc + x.osc_type_str().as_str()),
             ),
         }
     }
@@ -502,6 +502,7 @@ macro_rules! impl_osc_render {
                             }))
                         }
                         $p::Bool(v) => args.push(OscType::Bool(v.value().get())),
+                        $p::Array(v) => args.push(OscType::Array(v.value().get())),
                     }
                 }
             }

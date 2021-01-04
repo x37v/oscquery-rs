@@ -236,6 +236,7 @@ impl_get!(f64);
 impl_get!(char);
 impl_get!((u8, u8, u8, u8));
 impl_get!(bool);
+impl_get!(crate::osc::OscArray);
 
 #[cfg(test)]
 mod tests {
